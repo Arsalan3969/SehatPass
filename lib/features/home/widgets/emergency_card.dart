@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../emergency_qr/emergency_qr_screen.dart';
 
 /// Emergency & First Aid banner card.
 class EmergencyCard extends StatelessWidget {
@@ -8,7 +9,15 @@ class EmergencyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EmergencyQrScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
       decoration: BoxDecoration(
         color: AppColors.emergencySurface,
         borderRadius: BorderRadius.circular(16),
@@ -71,6 +80,7 @@ class EmergencyCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

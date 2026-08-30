@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'widgets/home_greeting_bar.dart';
 import 'widgets/health_overview_card.dart';
 import 'widgets/quick_actions_grid.dart';
+import 'widgets/appointments_home_card.dart';
 import 'widgets/emergency_card.dart';
 import 'widgets/today_schedule_section.dart';
 import 'widgets/recent_reports_section.dart';
@@ -26,6 +27,8 @@ class HomeScreen extends StatelessWidget {
               HealthOverviewCard(),
               SizedBox(height: 24),
               QuickActionsGrid(),
+              SizedBox(height: 20),
+              AppointmentsHomeCard(),
               SizedBox(height: 20),
               EmergencyCard(),
               SizedBox(height: 24),
