@@ -1,16 +1,48 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/constants/dummy_data.dart';
+import '../../../app/app_shell.dart';
+import '../models/patient_medicine_model.dart';
+import '../models/medical_report_model.dart';
 
 /// "Your Health Overview" card showing next medicine and latest report.
 class HealthOverviewCard extends StatelessWidget {
-  const HealthOverviewCard({super.key});
+  final PatientMedicineModel? nextMedicine;
+  final MedicalReportModel? latestReport;
+  final bool isLoading;
+  final VoidCallback? onViewAll;
+
+  const HealthOverviewCard({
+    super.key,
+    this.nextMedicine,
+    this.latestReport,
+    this.isLoading = false,
+    this.onViewAll,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final medicine = DummyData.nextMedicine;
-    final report = DummyData.latestReport;
+    final medTitle = isLoading
+        ? 'Loading...'
+        : (nextMedicine != null
+            ? nextMedicine!.name
+            : 'No medicines scheduled');
+    final medSubtitle = isLoading
+        ? 'Checking schedule'
+        : (nextMedicine != null
+            ? '${nextMedicine!.dosage} • ${nextMedicine!.scheduledTime}'
+            : 'Tap to view schedule');
+
+    final reportTitle = isLoading
+        ? 'Loading...'
+        : (latestReport != null
+            ? latestReport!.title
+            : 'No medical reports yet');
+    final reportSubtitle = isLoading
+        ? 'Checking reports'
+        : (latestReport != null
+            ? latestReport!.formattedDateLong
+            : 'Tap to view reports');
 
     return Container(
       decoration: BoxDecoration(
@@ -51,7 +83,7 @@ class HealthOverviewCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: onViewAll ?? () => AppShell.switchTab(2),
                   child: Text(
                     'View All →',
                     style: AppTextStyles.caption.copyWith(
@@ -71,11 +103,19 @@ class HealthOverviewCard extends StatelessWidget {
               children: [
                 // Next medicine
                 Expanded(
-                  child: _OverviewItem(
-                    icon: Icons.medication_outlined,
-                    label: 'Next Medicine',
-                    title: medicine.name,
-                    subtitle: '${medicine.dose} • ${medicine.time}',
+                  child: InkWell(
+                    onTap: () => AppShell.switchTab(2), // Medicines tab
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      child: _OverviewItem(
+                        icon: Icons.medication_outlined,
+                        label: 'Next Medicine',
+                        title: medTitle,
+                        subtitle: medSubtitle,
+                      ),
+                    ),
                   ),
                 ),
                 // Divider
@@ -83,15 +123,23 @@ class HealthOverviewCard extends StatelessWidget {
                   width: 1,
                   height: 56,
                   color: AppColors.border,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 // Latest report
                 Expanded(
-                  child: _OverviewItem(
-                    icon: Icons.description_outlined,
-                    label: 'Latest Report',
-                    title: report.title,
-                    subtitle: report.date,
+                  child: InkWell(
+                    onTap: () => AppShell.switchTab(1), // Reports tab
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      child: _OverviewItem(
+                        icon: Icons.description_outlined,
+                        label: 'Latest Report',
+                        title: reportTitle,
+                        subtitle: reportSubtitle,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -135,9 +183,19 @@ class _OverviewItem extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        Text(title, style: AppTextStyles.labelLarge),
+        Text(
+          title,
+          style: AppTextStyles.labelLarge,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 2),
-        Text(subtitle, style: AppTextStyles.bodySmall),
+        Text(
+          subtitle,
+          style: AppTextStyles.bodySmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

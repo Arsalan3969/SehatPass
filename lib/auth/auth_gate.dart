@@ -6,10 +6,18 @@ import '../core/theme/app_text_styles.dart';
 import '../features/auth/login_screen.dart';
 import '../features/doctor/doctor_shell_screen.dart';
 import '../services/auth_service.dart';
+import '../features/auth/reset_password_screen.dart';
 import '../shared/widgets/app_card.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  final Stream<AuthState>? authStateStream;
+  final bool? initialRecoveryMode;
+
+  const AuthGate({
+    super.key,
+    this.authStateStream,
+    this.initialRecoveryMode,
+  });
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -17,6 +25,13 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   Key _roleFutureKey = UniqueKey();
+  bool _isRecoveryMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isRecoveryMode = widget.initialRecoveryMode ?? false;
+  }
 
   void _retryRoleFetch() {
     setState(() {
@@ -27,14 +42,37 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
-      stream: AuthService.instance.authStateChanges,
+      stream: widget.authStateStream ?? AuthService.instance.authStateChanges,
       builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final event = snapshot.data!.event;
+          if (event == AuthChangeEvent.passwordRecovery) {
+            _isRecoveryMode = true;
+          } else if (event == AuthChangeEvent.signedOut) {
+            _isRecoveryMode = false;
+          }
+        }
+
         final session = snapshot.hasData
             ? snapshot.data!.session
             : AuthService.instance.currentSession;
 
         if (session == null || session.user.id.isEmpty) {
+          _isRecoveryMode = false;
           return const LoginScreen();
+        }
+
+        if (_isRecoveryMode) {
+          return ResetPasswordScreen(
+            onContinueToLogin: () async {
+              await AuthService.instance.signOut();
+              if (mounted) {
+                setState(() {
+                  _isRecoveryMode = false;
+                });
+              }
+            },
+          );
         }
 
         final userId = session.user.id;

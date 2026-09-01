@@ -16,6 +16,8 @@ class MyAppointmentsScreen extends StatefulWidget {
 class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -23,6 +25,30 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     _tabController = TabController(length: 3, vsync: this);
     // Listen to repository changes to rebuild the list
     AppointmentRepository.instance.addListener(_onRepoChanged);
+    _loadAppointments();
+  }
+
+  Future<void> _loadAppointments() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await AppointmentRepository.instance.getPatientAppointments();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _onRepoChanged() {
@@ -64,29 +90,90 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
         ),
       ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _AppointmentList(
-              appointments: AppointmentRepository.instance.upcoming,
-              emptyMessage: 'No upcoming appointments',
-              emptySubtitle: 'Book an appointment to get started.',
-              showFindDoctor: true,
-            ),
-            _AppointmentList(
-              appointments: AppointmentRepository.instance.past,
-              emptyMessage: 'No past appointments',
-              emptySubtitle: 'Your completed appointments will appear here.',
-            ),
-            _AppointmentList(
-              appointments: AppointmentRepository.instance.cancelled,
-              emptyMessage: 'No cancelled appointments',
-              emptySubtitle:
-                  'Appointments you cancel will appear here.',
-            ),
-          ],
-        ),
+        child: _buildBody(),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.emergencySurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.emergency,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load appointments',
+                style: AppTextStyles.headingSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                style: AppTextStyles.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _loadAppointments,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try Again'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _AppointmentList(
+          appointments: AppointmentRepository.instance.upcoming,
+          emptyMessage: 'No upcoming appointments',
+          emptySubtitle: 'Book an appointment to get started.',
+          showFindDoctor: true,
+          onRefresh: _loadAppointments,
+        ),
+        _AppointmentList(
+          appointments: AppointmentRepository.instance.past,
+          emptyMessage: 'No past appointments',
+          emptySubtitle: 'Your completed appointments will appear here.',
+          onRefresh: _loadAppointments,
+        ),
+        _AppointmentList(
+          appointments: AppointmentRepository.instance.cancelled,
+          emptyMessage: 'No cancelled appointments',
+          emptySubtitle: 'Appointments you cancel will appear here.',
+          onRefresh: _loadAppointments,
+        ),
+      ],
     );
   }
 }
@@ -100,19 +187,26 @@ class _AppointmentList extends StatelessWidget {
   final String emptyMessage;
   final String emptySubtitle;
   final bool showFindDoctor;
+  final Future<void> Function()? onRefresh;
 
   const _AppointmentList({
     required this.appointments,
     required this.emptyMessage,
     required this.emptySubtitle,
     this.showFindDoctor = false,
+    this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
     if (appointments.isEmpty) {
-      return Center(
-        child: Padding(
+      final emptyChild = SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        child: Container(
+          height: 400,
+          alignment: Alignment.center,
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -159,16 +253,36 @@ class _AppointmentList extends StatelessWidget {
           ),
         ),
       );
+
+      if (onRefresh != null) {
+        return RefreshIndicator(
+          onRefresh: onRefresh!,
+          color: AppColors.primary,
+          child: emptyChild,
+        );
+      }
+      return emptyChild;
     }
 
-    return ListView.separated(
+    final listChild = ListView.separated(
       padding: const EdgeInsets.all(16),
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       itemCount: appointments.length,
       separatorBuilder: (_, i) => const SizedBox(height: 12),
       itemBuilder: (context, i) =>
           _AppointmentCard(appointment: appointments[i]),
     );
+
+    if (onRefresh != null) {
+      return RefreshIndicator(
+        onRefresh: onRefresh!,
+        color: AppColors.primary,
+        child: listChild,
+      );
+    }
+    return listChild;
   }
 }
 

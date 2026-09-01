@@ -37,6 +37,8 @@ dependencies:
   qr_flutter: ^4.1.0
   supabase_flutter: ^2.17.2
   flutter_dotenv: ^6.0.1
+  file_picker: ^8.1.7
+  flutter_markdown: ^0.7.4+3
 
 dev_dependencies:
   flutter_test:

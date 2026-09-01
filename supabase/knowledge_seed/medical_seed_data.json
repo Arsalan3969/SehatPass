@@ -1,0 +1,410 @@
+[
+  {
+    "category": "medications",
+    "title": "Metformin: Indications, Mechanism, and Daily Usage",
+    "content": "Metformin is an oral biguanide antihyperglycemic medication prescribed as first-line pharmacotherapy for type 2 diabetes mellitus. It works primarily by decreasing hepatic gluconeogenesis (glucose production by the liver), decreasing intestinal glucose absorption, and enhancing insulin sensitivity in peripheral tissues to improve glucose uptake. When used as monotherapy, metformin does not stimulate insulin secretion and therefore does not cause hypoglycemia. Common initial side effects include mild gastrointestinal distress (nausea, abdominal cramping, diarrhea), which typically improves over time and can be mitigated by taking the drug with meals or using extended-release tablets.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/druginfo/meds/a684058.html",
+    "metadata": {
+      "chunk_id": "med_metformin_001",
+      "category": "medications",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/druginfo/meds/a684058.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["metformin", "type 2 diabetes", "biguanide", "blood sugar", "insulin sensitivity", "first-line medication"]
+    }
+  },
+  {
+    "category": "medications",
+    "title": "Lisinopril: Indications, Mechanism, and Precautions",
+    "content": "Lisinopril is an angiotensin-converting enzyme (ACE) inhibitor indicated for the treatment of essential hypertension, heart failure, and improving post-myocardial infarction survival. By inhibiting the ACE enzyme, it prevents the conversion of angiotensin I to the potent vasoconstrictor angiotensin II, leading to vasodilation, reduced systemic vascular resistance, and decreased aldosterone secretion. Patients initiating ACE inhibitors should have baseline and follow-up renal function (serum creatinine) and serum potassium levels checked. A dry, persistent non-productive cough is a known class side effect resulting from bradykinin accumulation.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/druginfo/meds/a692051.html",
+    "metadata": {
+      "chunk_id": "med_lisinopril_001",
+      "category": "medications",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/druginfo/meds/a692051.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["lisinopril", "ACE inhibitor", "hypertension", "blood pressure", "heart failure", "potassium"]
+    }
+  },
+  {
+    "category": "medications",
+    "title": "Amoxicillin: Spectrum, Usage, and Course Completion",
+    "content": "Amoxicillin is a moderate-spectrum beta-lactam penicillin-class antibiotic prescribed to treat susceptible bacterial infections involving the respiratory tract, middle ear (otitis media), paranasal sinuses, urinary tract, and skin. It acts bactericidally by binding to penicillin-binding proteins to inhibit bacterial cell wall synthesis. Amoxicillin has no activity against viral infections, including influenza, COVID-19, and the common cold. Patients must finish the full prescribed duration of therapy, even if symptoms subside earlier, to prevent bacterial recurrence and minimize the emergence of antibiotic resistance.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/druginfo/meds/a685001.html",
+    "metadata": {
+      "chunk_id": "med_amoxicillin_001",
+      "category": "medications",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/druginfo/meds/a685001.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["amoxicillin", "antibiotic", "penicillin", "bacterial infection", "course completion", "antimicrobial stewardship"]
+    }
+  },
+  {
+    "category": "common_symptoms",
+    "title": "Adult Fever: Assessment, Management, and Red Flags",
+    "content": "Fever in adults is clinically defined as a measured core/oral body temperature of 38.0°C (100.4°F) or higher. It is a natural physiological defense mechanism triggered by pyrogens during infections or inflammatory states. Conservative home measures focus on comfort: oral rehydration therapy, lightweight clothing, rest, and antipyretics (acetaminophen or ibuprofen) if the fever causes significant distress. Red flag symptoms requiring urgent medical evaluation include fever accompanied by a stiff neck, sudden confusion or altered mental status, difficulty breathing, new unexplained rash, or a fever persisting beyond three days without a clear source.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/flu/treatment/takingcare.htm",
+    "metadata": {
+      "chunk_id": "sym_fever_adult_001",
+      "category": "common_symptoms",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/flu/treatment/takingcare.htm",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["fever", "temperature", "infection", "hydration", "antipyretics", "red flags"]
+    }
+  },
+  {
+    "category": "common_symptoms",
+    "title": "Tension Headache vs. Migraine: Recognition and Characteristics",
+    "content": "Tension headaches are the most frequent primary headache disorder, presenting characteristically as a dull, steady, bilateral ache or band-like constricting pressure across the forehead, temples, or back of the head without associated nausea, vomiting, or focal neurological deficits. Migraine headaches, in contrast, often manifest as moderate-to-severe throbbing, unilateral pain, frequently accompanied by nausea, photophobia (light sensitivity), phonophobia (sound sensitivity), and sometimes visual auras. A sudden, severe headache reaching maximal intensity within seconds ('thunderclap headache') requires emergency medical care to rule out intracranial hemorrhage.",
+    "source": "National Institute of Neurological Disorders and Stroke (NINDS / NIH)",
+    "source_url": "https://www.ninds.nih.gov/health-information/disorders/headache",
+    "metadata": {
+      "chunk_id": "sym_headache_001",
+      "category": "common_symptoms",
+      "source": "NINDS / NIH",
+      "source_url": "https://www.ninds.nih.gov/health-information/disorders/headache",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["headache", "tension headache", "migraine", "neurology", "thunderclap headache", "photophobia"]
+    }
+  },
+  {
+    "category": "common_symptoms",
+    "title": "Acute Cough and Bronchitis: Self-Care and Clinical Thresholds",
+    "content": "Acute cough is most frequently caused by viral upper respiratory tract infections or acute bronchitis, typically lasting 10 to 21 days. Because viral etiologies account for the vast majority of acute bronchitis cases in healthy adults, routine antibiotic treatment is not indicated and does not expedite recovery. Recommended supportive care includes oral hydration, warm humidified air, honey for throat irritation (in individuals older than 1 year), and over-the-counter antitussives or expectorants if advised by a clinician. Medical evaluation is warranted if a cough produces blood (hemoptysis), is paired with high fever and chills, causes shortness of breath, or lasts longer than 3 to 4 weeks.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/antibiotic-use/bronchitis.html",
+    "metadata": {
+      "chunk_id": "sym_acute_cough_001",
+      "category": "common_symptoms",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/antibiotic-use/bronchitis.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["cough", "acute bronchitis", "respiratory infection", "viral illness", "supportive care", "hemoptysis"]
+    }
+  },
+  {
+    "category": "lab_tests",
+    "title": "Hemoglobin A1c (HbA1c): Diagnostic Utility and Target Ranges",
+    "content": "The Glycated Hemoglobin (HbA1c) blood test quantifies the average concentration of plasma glucose over the preceding 2 to 3 months by measuring the proportion of hemoglobin molecules bound to glucose. Standard diagnostic criteria: normal is below 5.7%; prediabetes is 5.7% to 6.4%; diabetes mellitus is diagnosed at 6.5% or greater on two separate occasions. For most non-pregnant adults with diagnosed diabetes, an established general therapeutic target is an HbA1c below 7.0%, adjusted individually by clinicians based on age, hypoglycemia risk, and existing comorbidities.",
+    "source": "National Institute of Diabetes and Digestive and Kidney Diseases (NIDDK / NIH)",
+    "source_url": "https://www.niddk.nih.gov/health-information/diagnostic-tests/a1c-test",
+    "metadata": {
+      "chunk_id": "lab_hba1c_001",
+      "category": "lab_tests",
+      "source": "NIDDK / NIH",
+      "source_url": "https://www.niddk.nih.gov/health-information/diagnostic-tests/a1c-test",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["HbA1c", "glycated hemoglobin", "diabetes diagnostic", "blood sugar", "lab test", "glucose monitoring"]
+    }
+  },
+  {
+    "category": "lab_tests",
+    "title": "Complete Blood Count (CBC): Core Parameters and Interpretation",
+    "content": "A Complete Blood Count (CBC) is a fundamental diagnostic panel that evaluates cellular components of blood: white blood cell (WBC) count, red blood cell (RBC) count, hemoglobin (Hgb), hematocrit (Hct), and platelet count. WBCs play a central role in immune defense, with elevations (leukocytosis) frequently signifying infection, inflammation, or physiological stress. Hemoglobin and hematocrit assess the blood's capacity to transport oxygen throughout tissues; low values indicate anemia. Platelets are essential for primary hemostasis and blood clotting; abnormal counts require targeted clinical investigation.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/lab-tests/complete-blood-count-cbc/",
+    "metadata": {
+      "chunk_id": "lab_cbc_001",
+      "category": "lab_tests",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/lab-tests/complete-blood-count-cbc/",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["CBC", "complete blood count", "hemoglobin", "platelets", "white blood cells", "anemia", "hematology"]
+    }
+  },
+  {
+    "category": "lab_tests",
+    "title": "Lipid Panel: Cholesterol Fractions and Cardiovascular Assessment",
+    "content": "A standard Lipid Panel measures four key circulating lipid components: Total Cholesterol, Low-Density Lipoprotein Cholesterol (LDL-C), High-Density Lipoprotein Cholesterol (HDL-C), and Triglycerides. LDL-C is atherogenic; elevated concentrations contribute to plaque buildup within arterial walls, elevating the risk of coronary artery disease and ischemic stroke. HDL-C assists in reverse cholesterol transport from peripheral tissues to the liver for excretion. Triglycerides reflect circulating fat from diet and metabolism. Fasting is commonly recommended for 9 to 12 hours prior to lipid measurement depending on institutional guidelines.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/cholesterol/testing.htm",
+    "metadata": {
+      "chunk_id": "lab_lipid_panel_001",
+      "category": "lab_tests",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/cholesterol/testing.htm",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["lipid panel", "cholesterol", "LDL", "HDL", "triglycerides", "cardiovascular risk", "atherosclerosis"]
+    }
+  },
+  {
+    "category": "chronic_conditions",
+    "title": "Type 2 Diabetes Mellitus: Pathophysiology and Lifestyle Management",
+    "content": "Type 2 Diabetes Mellitus is a progressive metabolic condition characterized by systemic insulin resistance in peripheral tissues accompanied by a gradual decline in pancreatic beta-cell insulin secretion. Uncontrolled hyperglycemia over time leads to microvascular complications (retinopathy, nephropathy, neuropathy) and macrovascular disease (coronary artery disease, stroke, peripheral artery disease). Cornerstone management includes evidence-based nutritional therapy, at least 150 minutes per week of moderate-intensity physical activity, weight management, self-monitoring of blood glucose, and prescribed pharmacotherapy.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/diabetes/basics/type2.html",
+    "metadata": {
+      "chunk_id": "chr_diabetes_t2_001",
+      "category": "chronic_conditions",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/diabetes/basics/type2.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["type 2 diabetes", "insulin resistance", "hyperglycemia", "chronic disease", "metabolic health", "lifestyle management"]
+    }
+  },
+  {
+    "category": "chronic_conditions",
+    "title": "Essential Hypertension: Classification, Risks, and Interventions",
+    "content": "Essential hypertension is defined as persistent clinical blood pressure readings of systolic ≥130 mm Hg or diastolic ≥80 mm Hg across multiple clinical encounters. Often symptomless, untreated hypertension significantly increases the incidence of ischemic stroke, heart failure, myocardial infarction, and chronic kidney disease. Key non-pharmacological interventions include the DASH eating plan, reducing daily sodium intake below 2,000 mg, engaging in regular aerobic exercise, limiting alcohol intake, and smoking cessation. Antihypertensive medications (e.g., ACE inhibitors, ARBs, thiazide diuretics, CCBs) are prescribed according to clinical guidelines.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/bloodpressure/about.htm",
+    "metadata": {
+      "chunk_id": "chr_hypertension_001",
+      "category": "chronic_conditions",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/bloodpressure/about.htm",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["hypertension", "blood pressure", "systolic", "diastolic", "cardiovascular health", "stroke prevention"]
+    }
+  },
+  {
+    "category": "chronic_conditions",
+    "title": "Asthma: Chronic Airway Inflammation and Action Plans",
+    "content": "Asthma is a chronic inflammatory disorder of the airways characterized by bronchial hyperresponsiveness, reversible airflow limitation, and recurring episodes of wheezing, breathlessness, chest tightness, and coughing. Management is rooted in identifying and avoiding personal triggers (allergens, tobacco smoke, cold air, viral infections) and using dual pharmacotherapy: daily inhaled corticosteroids (controller therapy) to reduce baseline inflammation, and short-acting beta2-agonists (reliever/rescue therapy) for acute bronchospasm. Every patient with asthma should maintain a personalized written Asthma Action Plan with their clinician.",
+    "source": "National Heart, Lung, and Blood Institute (NHLBI / NIH)",
+    "source_url": "https://www.nhlbi.nih.gov/health/asthma",
+    "metadata": {
+      "chunk_id": "chr_asthma_001",
+      "category": "chronic_conditions",
+      "source": "NHLBI / NIH",
+      "source_url": "https://www.nhlbi.nih.gov/health/asthma",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["asthma", "bronchial inflammation", "inhaler", "corticosteroid", "bronchospasm", "action plan"]
+    }
+  },
+  {
+    "category": "preventive_health",
+    "title": "Adult Immunization Guidelines and Preventive Protection",
+    "content": "Routine vaccination in adulthood is an essential preventive health pillar designed to sustain immunity against vaccine-preventable communicable diseases, mitigate severe illness, and reduce hospitalization. Standard recommendations include an annual influenza vaccination, updated COVID-19 immunizations, Tdap (tetanus, diphtheria, and acellular pertussis) booster every 10 years, recombinant zoster vaccine for adults aged 50 and older to prevent shingles, and pneumococcal conjugate vaccines for adults aged 65 and older or those with specific chronic medical conditions.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/vaccines/schedules/hcp/imz/adult.html",
+    "metadata": {
+      "chunk_id": "prev_adult_vaccines_001",
+      "category": "preventive_health",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/vaccines/schedules/hcp/imz/adult.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["immunization", "adult vaccines", "influenza", "Tdap", "shingles", "pneumococcal", "preventive medicine"]
+    }
+  },
+  {
+    "category": "preventive_health",
+    "title": "Cardiovascular Disease Screening and Risk Stratification",
+    "content": "Preventive cardiovascular screening seeks to detect modifiable risk factors early before overt clinical vascular disease develops. Routine screening parameters in adults include regular blood pressure measurement, periodic fasting or non-fasting lipid profile assessment, glycemia screening (fasting blood glucose or HbA1c), and calculation of 10-year atherosclerotic cardiovascular disease (ASCVD) risk scores. Adopting lifestyle modifications—including smoking cessation, a heart-healthy dietary pattern, and 150 minutes of weekly moderate aerobic exercise—serves as the foundational primary prevention strategy.",
+    "source": "World Health Organization (WHO)",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/cardiovascular-diseases-(cvds)",
+    "metadata": {
+      "chunk_id": "prev_cvd_screening_001",
+      "category": "preventive_health",
+      "source": "WHO",
+      "source_url": "https://www.who.int/news-room/fact-sheets/detail/cardiovascular-diseases-(cvds)",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["preventive health", "cardiovascular screening", "blood pressure", "cholesterol", "ASCVD", "lifestyle"]
+    }
+  },
+  {
+    "category": "preventive_health",
+    "title": "Sleep Hygiene and Circadian Health Fundamentals",
+    "content": "Adequate sleep duration and consistent sleep quality are vital for metabolic stability, cardiovascular health, immune function, and cognitive resilience. The CDC recommends 7 or more hours of restful sleep per 24-hour period for adults. Evidence-based sleep hygiene practices include maintaining a consistent sleep-wake schedule 7 days a week, ensuring the sleep environment is quiet, dark, and comfortably cool, eliminating blue-light screen exposure at least 30 to 60 minutes prior to bedtime, and avoiding large meals, caffeine, and alcohol in the hours preceding sleep.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/sleep/about_sleep/sleep_hygiene.html",
+    "metadata": {
+      "chunk_id": "prev_sleep_hygiene_001",
+      "category": "preventive_health",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/sleep/about_sleep/sleep_hygiene.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["sleep hygiene", "circadian rhythm", "rest", "metabolic health", "preventive health", "sleep duration"]
+    }
+  },
+  {
+    "category": "nutrition",
+    "title": "Dietary Sodium Intake Guidelines and Cardiovascular Impact",
+    "content": "Excessive consumption of dietary sodium is a primary driver of elevated blood pressure and an independent risk factor for stroke, coronary heart disease, and renal impairment. The World Health Organization recommends restricting daily sodium intake to less than 2,000 mg (equivalent to approximately 5 grams or 1 level teaspoon of table salt) for adults. In contemporary diets, the majority of sodium comes from commercially processed, packaged, and restaurant-prepared foods. Reducing consumption of ultra-processed foods and seasoning meals with herbs and spices provides substantial cardiovascular benefit.",
+    "source": "World Health Organization (WHO)",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/salt-reduction",
+    "metadata": {
+      "chunk_id": "nut_sodium_guidelines_001",
+      "category": "nutrition",
+      "source": "WHO",
+      "source_url": "https://www.who.int/news-room/fact-sheets/detail/salt-reduction",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["nutrition", "sodium", "salt reduction", "blood pressure", "dietary guidelines", "cardiovascular health"]
+    }
+  },
+  {
+    "category": "nutrition",
+    "title": "Dietary Approaches to Stop Hypertension (DASH) Eating Plan",
+    "content": "The DASH (Dietary Approaches to Stop Hypertension) dietary pattern is an established nutritional framework clinically proven to lower systolic and diastolic blood pressure and improve serum lipid fractions. It emphasizes abundant consumption of vegetables, fruits, whole grains, fat-free or low-fat dairy products, legumes, nuts, seeds, and lean poultry and fish. It strictly limits saturated fats, full-fat dairy, red and processed meats, and sugar-sweetened beverages, while ensuring adequate dietary intake of potassium, calcium, magnesium, and dietary fiber.",
+    "source": "National Heart, Lung, and Blood Institute (NHLBI / NIH)",
+    "source_url": "https://www.nhlbi.nih.gov/education/dash-eating-plan",
+    "metadata": {
+      "chunk_id": "nut_dash_diet_001",
+      "category": "nutrition",
+      "source": "NHLBI / NIH",
+      "source_url": "https://www.nhlbi.nih.gov/education/dash-eating-plan",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["DASH diet", "nutrition", "hypertension", "potassium", "whole grains", "blood pressure", "healthy eating"]
+    }
+  },
+  {
+    "category": "nutrition",
+    "title": "Dietary Fiber: Glycemic Regulation and Digestive Health",
+    "content": "Dietary fiber consists of non-digestible complex plant carbohydrates categorized into soluble and insoluble fractions. Soluble fiber (found in oats, legumes, barley, psyllium, and citrus fruits) dissolves in water to form a gel-like matrix in the digestive tract, slowing gastric emptying and carbohydrate absorption to reduce postprandial blood glucose spikes and assist in lowering LDL cholesterol. Insoluble fiber (found in whole wheat, wheat bran, and vegetables) promotes bowel regularity and healthy gastrointestinal motility. Recommended daily intake is 25 to 35 grams for adults.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/dietaryfiber.html",
+    "metadata": {
+      "chunk_id": "nut_fiber_glycemic_001",
+      "category": "nutrition",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/dietaryfiber.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["dietary fiber", "soluble fiber", "glycemic control", "cholesterol reduction", "digestive health", "nutrition"]
+    }
+  },
+  {
+    "category": "medication_safety",
+    "title": "Acetaminophen (Paracetamol): Safe Dosing Limits and Liver Safety",
+    "content": "Acetaminophen (paracetamol) is an effective over-the-counter analgesic and antipyretic. To prevent drug-induced acute liver injury and hepatic failure, the maximum recommended cumulative dose for healthy adults must not exceed 4,000 mg (4 grams) within any 24-hour period; lower thresholds (2,000 to 3,000 mg/day) are advised for individuals with pre-existing hepatic disease or regular alcohol consumption. Because acetaminophen is a frequent constituent of multi-ingredient over-the-counter cold, flu, allergy, and headache medications, consumers must check product labels to avoid unintentional concurrent overdose.",
+    "source": "U.S. Food and Drug Administration (FDA)",
+    "source_url": "https://www.fda.gov/drugs/safe-daily-use-pain-relievers/acetaminophen-and-liver-injury",
+    "metadata": {
+      "chunk_id": "saf_acetaminophen_001",
+      "category": "medication_safety",
+      "source": "FDA",
+      "source_url": "https://www.fda.gov/drugs/safe-daily-use-pain-relievers/acetaminophen-and-liver-injury",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["acetaminophen", "paracetamol", "medication safety", "liver injury", "maximum dose", "toxicity prevention"]
+    }
+  },
+  {
+    "category": "medication_safety",
+    "title": "Statin Medications and Grapefruit Interactions",
+    "content": "Certain HMG-CoA reductase inhibitors (statins), most notably simvastatin and atorvastatin, exhibit a clinically significant pharmacokinetic interaction with grapefruit and grapefruit juice. Grapefruit contains bioactive furanocoumarins that irreversibly inhibit intestinal cytochrome P450 3A4 (CYP3A4) enzymes. This significantly increases systemic statin bioavailability and blood serum concentrations, elevating the risk of dose-dependent adverse reactions including statin-induced myopathy, elevated liver transaminases, and rhabdomyolysis.",
+    "source": "U.S. Food and Drug Administration (FDA)",
+    "source_url": "https://www.fda.gov/consumers/consumer-updates/grapefruit-juice-and-some-drugs-dont-mix",
+    "metadata": {
+      "chunk_id": "saf_statin_grapefruit_001",
+      "category": "medication_safety",
+      "source": "FDA",
+      "source_url": "https://www.fda.gov/consumers/consumer-updates/grapefruit-juice-and-some-drugs-dont-mix",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["statins", "grapefruit interaction", "CYP3A4", "atorvastatin", "simvastatin", "myopathy", "medication safety"]
+    }
+  },
+  {
+    "category": "medication_safety",
+    "title": "Antibiotic Stewardship and Safe Medication Disposal",
+    "content": "Antimicrobial stewardship refers to coordinated clinical and public health efforts to optimize the appropriate prescribing and utilization of antibiotics. Inappropriate antibiotic use for viral syndromes (colds, non-strep pharyngitis, acute viral bronchitis) drives selective pressure for antimicrobial-resistant superbugs. Unused or expired medications should never be flushed down toilets or drains unless specifically on an approved FDA flush list; instead, utilize community drug take-back programs or mix the medication with unpalatable substances in sealed trash bags to protect household safety and the environment.",
+    "source": "U.S. Food and Drug Administration (FDA)",
+    "source_url": "https://www.fda.gov/drugs/safe-disposal-medicines/disposal-unused-medicines-what-you-should-know",
+    "metadata": {
+      "chunk_id": "saf_antibiotic_disposal_001",
+      "category": "medication_safety",
+      "source": "FDA",
+      "source_url": "https://www.fda.gov/drugs/safe-disposal-medicines/disposal-unused-medicines-what-you-should-know",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["antibiotic stewardship", "antimicrobial resistance", "medication disposal", "patient safety", "drug take-back"]
+    }
+  },
+  {
+    "category": "when_to_seek_care",
+    "title": "Acute Chest Pain and Myocardial Infarction Red Flags",
+    "content": "Acute chest discomfort characterized by pressure, fullness, squeezing, crushing pain, or burning in the center or left side of the chest that lasts more than a few minutes or resolves and recurs is a medical emergency suggestive of acute coronary syndrome or myocardial infarction. Associated critical red flags include pain radiating to the left arm, neck, jaw, back, or epigastrium, accompanied by shortness of breath (dyspnea), cold sweats (diaphoresis), nausea, or lightheadedness. Emergency medical services (EMS/911) must be activated immediately; patients should never attempt to drive themselves to an emergency department.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/heart-disease/about/heart-attack.html",
+    "metadata": {
+      "chunk_id": "care_chest_pain_001",
+      "category": "when_to_seek_care",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/heart-disease/about/heart-attack.html",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["chest pain", "heart attack", "myocardial infarction", "emergency", "red flags", "EMS", "cardiology"]
+    }
+  },
+  {
+    "category": "when_to_seek_care",
+    "title": "Stroke Warning Signs: The F.A.S.T. Recognition Protocol",
+    "content": "Acute ischemic or hemorrhagic stroke is a time-critical neurological emergency requiring immediate emergent medical intervention. Use the validated F.A.S.T. protocol for rapid detection: F (Face Drooping - ask the person to smile; is one side uneven?), A (Arm Weakness - ask the person to raise both arms; does one drift downward?), S (Speech Difficulty - is speech slurred, strange, or unable to be produced?), T (Time to Call Emergency Services - call EMS immediately and note the exact time when symptoms first began). Rapid hospital arrival within the therapeutic window is essential for acute thrombolysis or endovascular thrombectomy.",
+    "source": "Centers for Disease Control and Prevention (CDC)",
+    "source_url": "https://www.cdc.gov/stroke/signs-symptoms/",
+    "metadata": {
+      "chunk_id": "care_stroke_fast_001",
+      "category": "when_to_seek_care",
+      "source": "CDC",
+      "source_url": "https://www.cdc.gov/stroke/signs-symptoms/",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["stroke", "FAST protocol", "emergency medical care", "neurology", "face drooping", "slurred speech", "thrombolysis"]
+    }
+  },
+  {
+    "category": "when_to_seek_care",
+    "title": "Anaphylaxis: Recognition and Immediate Emergency Management",
+    "content": "Anaphylaxis is a severe, rapidly progressing, potentially life-threatening systemic hypersensitivity reaction triggered by foods, medications, insect venoms, or latex. Symptoms typically develop within minutes and encompass multiple organ systems: cutaneous (generalized hives, pruritus, angioedema of lips/tongue/uvula), respiratory (stridor, wheezing, throat tightness, severe dyspnea), gastrointestinal (cramping abdominal pain, vomiting), and cardiovascular (hypotension, dizziness, syncope). Intramuscular epinephrine (into the anterolateral mid-thigh) is the primary first-line treatment and must be administered immediately, followed by calling emergency medical services.",
+    "source": "MedlinePlus / National Institutes of Health",
+    "source_url": "https://medlineplus.gov/ency/article/000844.htm",
+    "metadata": {
+      "chunk_id": "care_anaphylaxis_001",
+      "category": "when_to_seek_care",
+      "source": "MedlinePlus / NIH",
+      "source_url": "https://medlineplus.gov/ency/article/000844.htm",
+      "embedding_model": "gemini-embedding-001",
+      "embedding_dim": 768,
+      "ingestion_version": "v1.0.0",
+      "keywords": ["anaphylaxis", "severe allergic reaction", "epinephrine", "emergency", "angioedema", "airway compromise"]
+    }
+  }
+]

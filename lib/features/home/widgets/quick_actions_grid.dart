@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../app/app_shell.dart';
+import '../../appointments/find_doctor_screen.dart';
 
 class _QuickAction {
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
 
   const _QuickAction({
     required this.icon,
     required this.label,
+    required this.onTap,
   });
 }
 
@@ -20,10 +24,29 @@ class QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      _QuickAction(icon: Icons.upload_file_outlined, label: 'Upload Report'),
-      _QuickAction(icon: Icons.document_scanner_outlined, label: 'Scan Prescription'),
-      _QuickAction(icon: Icons.add_circle_outline, label: 'Add Medicine'),
-      _QuickAction(icon: Icons.smart_toy_outlined, label: 'Ask Sehat AI'),
+      _QuickAction(
+        icon: Icons.upload_file_outlined,
+        label: 'Upload Report',
+        onTap: () => AppShell.switchTab(1), // Reports Tab
+      ),
+      _QuickAction(
+        icon: Icons.person_search_outlined,
+        label: 'Book Doctor',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FindDoctorScreen()),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.add_circle_outline,
+        label: 'Add Medicine',
+        onTap: () => AppShell.switchTab(2), // Medicines Tab
+      ),
+      _QuickAction(
+        icon: Icons.smart_toy_outlined,
+        label: 'Ask Sehat AI',
+        onTap: () => AppShell.switchTab(3), // Sehat AI Tab
+      ),
     ];
 
     return Column(
@@ -64,6 +87,7 @@ class _QuickActionCardState extends State<_QuickActionCard> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
+        widget.action.onTap();
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
@@ -105,12 +129,25 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                 size: 20,
               ),
             ),
-            Text(
-              widget.action.label,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.action.label,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.textTertiary,
+                  size: 16,
+                ),
+              ],
             ),
           ],
         ),

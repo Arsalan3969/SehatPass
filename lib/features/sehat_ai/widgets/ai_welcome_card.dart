@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/constants/dummy_data.dart';
-
 /// Soft green-tinted welcome card at the top of the Sehat AI screen.
 class AiWelcomeCard extends StatelessWidget {
-  const AiWelcomeCard({super.key});
+  final String? patientName;
+
+  const AiWelcomeCard({super.key, this.patientName});
 
   @override
   Widget build(BuildContext context) {
+    final displayName = (patientName != null && patientName!.trim().isNotEmpty)
+        ? patientName!.trim()
+        : 'there';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -109,7 +113,7 @@ class AiWelcomeCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hi ${DummyData.patientName} 👋',
+                        'Hi $displayName 👋',
                         style: AppTextStyles.headingSmall,
                       ),
                       const SizedBox(height: 4),

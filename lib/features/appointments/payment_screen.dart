@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'data/appointment_repository.dart';
-import 'models/appointment_model.dart';
 import 'models/doctor_model.dart';
 import 'appointment_confirmation_screen.dart';
 
@@ -33,38 +32,64 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _pay() async {
     setState(() => _loading = true);
 
-    // Simulate brief payment processing delay
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final method = _selectedMethod == 0 ? 'card' : 'wallet';
+      final appointment = await AppointmentRepository.instance.bookAppointment(
+        doctor: widget.doctor,
+        date: widget.date,
+        time: widget.time,
+        consultationFee: widget.doctor.consultationFee,
+        platformFee: widget.platformFee,
+        clinicId: widget.doctor.clinicId,
+        serviceId: widget.doctor.services.isNotEmpty
+            ? widget.doctor.services.first.id
+            : null,
+        serviceName: widget.doctor.services.isNotEmpty
+            ? widget.doctor.services.first.name
+            : 'General Consultation',
+        paymentMethod: method,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    // Create local appointment
-    final repo = AppointmentRepository.instance;
-    final appointment = Appointment(
-      id: repo.generateId(),
-      doctor: widget.doctor,
-      date: widget.date,
-      time: widget.time,
-      consultationFee: widget.doctor.consultationFee,
-      platformFee: widget.platformFee,
-      paymentStatus: PaymentStatus.paid,
-      status: AppointmentStatus.upcoming,
-    );
-    repo.addAppointment(appointment);
+      setState(() => _loading = false);
 
-    setState(() => _loading = false);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              AppointmentConfirmationScreen(appointment: appointment),
+        ),
+        // Remove all screens in the booking flow back to home
+        (route) => route.isFirst,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
 
-    if (!mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            AppointmentConfirmationScreen(appointment: appointment),
-      ),
-      // Remove all screens in the booking flow back to home
-      (route) => route.isFirst,
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  e.toString(),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override

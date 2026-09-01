@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 /// Model representing patient emergency information and privacy/sharing settings.
-/// In future iterations, [identifier] will be replaced by a secure backend-signed token/URL.
+/// Backed by `public.emergency_settings`, `public.profiles`, `public.patient_profiles`,
+/// and `public.patient_medicines` in Supabase.
 class EmergencyInfoData {
   final String identifier;
   final String fullName;
@@ -21,23 +22,113 @@ class EmergencyInfoData {
   final bool shareImportantMedicines;
   final bool shareEmergencyContact;
 
+  final bool isActive;
+  final DateTime? updatedAt;
+
   const EmergencyInfoData({
-    this.identifier = 'SEHATPASS-EMERGENCY-USER-001',
-    this.fullName = 'Abdul Wahab',
-    this.bloodGroup = 'O+',
-    this.allergies = 'None added',
-    this.medicalConditions = 'None added',
-    this.importantMedicines = 'None added',
-    this.emergencyContactName = 'Muhammad Arsalan',
-    this.emergencyContactRelationship = 'Friend',
-    this.emergencyContactPhone = '+92 XXX XXXXXXX',
+    this.identifier = '',
+    this.fullName = '',
+    this.bloodGroup = '',
+    this.allergies = '',
+    this.medicalConditions = '',
+    this.importantMedicines = '',
+    this.emergencyContactName = '',
+    this.emergencyContactRelationship = '',
+    this.emergencyContactPhone = '',
     this.shareName = true,
     this.shareBloodGroup = true,
     this.shareAllergies = true,
     this.shareMedicalConditions = true,
     this.shareImportantMedicines = true,
     this.shareEmergencyContact = true,
+    this.isActive = true,
+    this.updatedAt,
   });
+
+  /// Factory constructor to parse map representations from Supabase or RPC.
+  factory EmergencyInfoData.fromMap(
+    Map<String, dynamic> map, {
+    String fullName = '',
+    String bloodGroup = '',
+    String allergies = '',
+    String medicalConditions = '',
+    String importantMedicines = '',
+  }) {
+    return EmergencyInfoData(
+      identifier: (map['emergency_token'] ?? map['identifier'] ?? '').toString(),
+      fullName: (map['full_name'] ?? fullName).toString(),
+      bloodGroup: (map['blood_group'] ?? bloodGroup).toString(),
+      allergies: (map['allergies'] ?? allergies).toString(),
+      medicalConditions: (map['medical_conditions'] ?? medicalConditions).toString(),
+      importantMedicines: (map['important_medicines'] ?? importantMedicines).toString(),
+      emergencyContactName: (map['contact_name'] ?? map['emergency_contact_name'] ?? '').toString(),
+      emergencyContactRelationship: (map['contact_relationship'] ?? map['emergency_contact_relationship'] ?? '').toString(),
+      emergencyContactPhone: (map['contact_phone'] ?? map['emergency_contact_phone'] ?? '').toString(),
+      shareName: map['share_name'] is bool ? map['share_name'] as bool : true,
+      shareBloodGroup: map['share_blood_group'] is bool ? map['share_blood_group'] as bool : true,
+      shareAllergies: map['share_allergies'] is bool ? map['share_allergies'] as bool : true,
+      shareMedicalConditions: map['share_medical_conditions'] is bool ? map['share_medical_conditions'] as bool : true,
+      shareImportantMedicines: map['share_important_medicines'] is bool ? map['share_important_medicines'] as bool : true,
+      shareEmergencyContact: map['share_emergency_contact'] is bool ? map['share_emergency_contact'] as bool : true,
+      isActive: map['is_active'] is bool ? map['is_active'] as bool : true,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.tryParse(map['updated_at'].toString())
+          : null,
+    );
+  }
+
+  /// Converts sharing flags and contact information to Supabase `emergency_settings` map.
+  Map<String, dynamic> toEmergencySettingsMap({String? patientId}) {
+    final map = <String, dynamic>{
+      'contact_name': emergencyContactName,
+      'contact_relationship': emergencyContactRelationship,
+      'contact_phone': emergencyContactPhone,
+      'share_name': shareName,
+      'share_blood_group': shareBloodGroup,
+      'share_allergies': shareAllergies,
+      'share_medical_conditions': shareMedicalConditions,
+      'share_important_medicines': shareImportantMedicines,
+      'share_emergency_contact': shareEmergencyContact,
+      'is_active': isActive,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (patientId != null && patientId.isNotEmpty) {
+      map['patient_id'] = patientId;
+    }
+    if (identifier.isNotEmpty) {
+      map['emergency_token'] = identifier;
+    }
+    return map;
+  }
+
+  /// Checks whether any sharing toggle is active.
+  bool get hasAnySharedInfo =>
+      shareName ||
+      shareBloodGroup ||
+      shareAllergies ||
+      shareMedicalConditions ||
+      shareImportantMedicines ||
+      shareEmergencyContact;
+
+  /// Checks whether an emergency contact has been configured.
+  bool get hasEmergencyContact =>
+      emergencyContactName.trim().isNotEmpty &&
+      emergencyContactPhone.trim().isNotEmpty;
+
+  /// Checks whether the primary emergency health info is filled in.
+  bool get isComplete =>
+      bloodGroup.trim().isNotEmpty &&
+      bloodGroup != 'None added' &&
+      hasEmergencyContact;
+
+  /// Returns a clean formatted contact summary.
+  String get formattedEmergencyContact {
+    if (!hasEmergencyContact) return 'No emergency contact added';
+    if (emergencyContactRelationship.trim().isNotEmpty) {
+      return '$emergencyContactName ($emergencyContactRelationship) • $emergencyContactPhone';
+    }
+    return '$emergencyContactName • $emergencyContactPhone';
+  }
 
   EmergencyInfoData copyWith({
     String? identifier,
@@ -55,6 +146,8 @@ class EmergencyInfoData {
     bool? shareMedicalConditions,
     bool? shareImportantMedicines,
     bool? shareEmergencyContact,
+    bool? isActive,
+    DateTime? updatedAt,
   }) {
     return EmergencyInfoData(
       identifier: identifier ?? this.identifier,
@@ -77,12 +170,13 @@ class EmergencyInfoData {
           shareImportantMedicines ?? this.shareImportantMedicines,
       shareEmergencyContact:
           shareEmergencyContact ?? this.shareEmergencyContact,
+      isActive: isActive ?? this.isActive,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }
 
-/// Simple in-memory repository with a ChangeNotifier to keep emergency
-/// settings synchronized across screens locally.
+/// Backward compatibility provider for any legacy listeners during migration.
 class EmergencyInfoRepository extends ChangeNotifier {
   EmergencyInfoRepository._();
   static final EmergencyInfoRepository instance = EmergencyInfoRepository._();

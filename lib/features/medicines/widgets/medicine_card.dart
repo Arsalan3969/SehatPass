@@ -12,7 +12,7 @@ import '../models/medicine_item.dart';
         bg: AppColors.primarySurface,
         text: AppColors.primary,
         border: const Color(0xFFA7D9C0),
-        icon: Icons.check_circle_outline_rounded,
+        icon: Icons.check_circle_rounded,
       );
     case MedicineStatus.upcoming:
       return (
@@ -35,13 +35,17 @@ import '../models/medicine_item.dart';
 class MedicineCard extends StatefulWidget {
   final MedicineItem medicine;
 
-  /// Called only when an [upcoming] medicine is tapped to mark as taken.
+  /// Called when an [upcoming] medicine's status badge is tapped to mark as taken.
   final VoidCallback? onMarkTaken;
+
+  /// Called when the card is tapped to view or edit medication details.
+  final VoidCallback? onTap;
 
   const MedicineCard({
     super.key,
     required this.medicine,
     this.onMarkTaken,
+    this.onTap,
   });
 
   @override
@@ -56,40 +60,31 @@ class _MedicineCardState extends State<MedicineCard> {
     final style = _statusStyle(widget.medicine.status);
     final isUpcoming = widget.medicine.status == MedicineStatus.upcoming;
 
-    return GestureDetector(
-      onTapDown: isUpcoming ? (_) => setState(() => _pressed = true) : null,
-      onTapUp: isUpcoming
-          ? (_) {
-              setState(() => _pressed = false);
-              widget.onMarkTaken?.call();
-            }
-          : null,
-      onTapCancel: isUpcoming
-          ? () => setState(() => _pressed = false)
-          : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        transform: _pressed
-            ? Matrix4.diagonal3Values(0.98, 0.98, 1.0)
-            : Matrix4.identity(),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x07000000),
-              blurRadius: 12,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Medicine icon container
-            Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      transform: _pressed
+          ? Matrix4.diagonal3Values(0.98, 0.98, 1.0)
+          : Matrix4.identity(),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x07000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Medicine icon container (tappable for edit)
+          GestureDetector(
+            onTap: widget.onTap,
+            child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
@@ -102,17 +97,28 @@ class _MedicineCardState extends State<MedicineCard> {
                 size: 26,
               ),
             ),
-            const SizedBox(width: 13),
+          ),
+          const SizedBox(width: 13),
 
-            // Medicine info
-            Expanded(
+          // Medicine info (tappable for edit)
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (_) => setState(() => _pressed = true),
+              onTapUp: (_) {
+                setState(() => _pressed = false);
+                widget.onTap?.call();
+              },
+              onTapCancel: () => setState(() => _pressed = false),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(widget.medicine.name, style: AppTextStyles.labelLarge),
                   const SizedBox(height: 3),
                   Text(
-                    '${widget.medicine.dosage} • ${widget.medicine.instruction}',
+                    widget.medicine.instruction.isNotEmpty
+                        ? '${widget.medicine.dosage} • ${widget.medicine.instruction}'
+                        : widget.medicine.dosage,
                     style: AppTextStyles.bodyMedium.copyWith(fontSize: 13),
                   ),
                   const SizedBox(height: 5),
@@ -126,7 +132,9 @@ class _MedicineCardState extends State<MedicineCard> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        widget.medicine.time,
+                        widget.medicine.time.isNotEmpty
+                            ? widget.medicine.time
+                            : 'Scheduled',
                         style: AppTextStyles.caption.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
@@ -137,10 +145,21 @@ class _MedicineCardState extends State<MedicineCard> {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+          ),
+          const SizedBox(width: 10),
 
-            // Status badge (tappable when upcoming)
-            Column(
+          // Status badge - Dedicated tap target to mark dose taken
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (isUpcoming && widget.onMarkTaken != null) {
+                widget.onMarkTaken!();
+              } else if (widget.onTap != null) {
+                widget.onTap!();
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -153,7 +172,7 @@ class _MedicineCardState extends State<MedicineCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(style.icon, size: 13, color: style.text),
+                      Icon(style.icon, size: 14, color: style.text),
                       const SizedBox(width: 4),
                       Text(
                         widget.medicine.status.label,
@@ -167,27 +186,32 @@ class _MedicineCardState extends State<MedicineCard> {
                   ),
                 ),
                 if (isUpcoming) ...[
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Text(
                     'Tap to mark',
                     style: AppTextStyles.caption.copyWith(
                       color: const Color(0xFFB45309),
                       fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ],
             ),
-            const SizedBox(width: 6),
+          ),
+          const SizedBox(width: 4),
 
-            // Chevron
-            const Icon(
+          // Chevron (tappable for edit)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: const Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textTertiary,
               size: 20,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

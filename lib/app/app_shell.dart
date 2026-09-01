@@ -10,6 +10,15 @@ import '../core/theme/app_colors.dart';
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
+  /// Global tab notifier to allow any screen to programmatically switch bottom tabs.
+  static final ValueNotifier<int> tabNotifier = ValueNotifier<int>(0);
+
+  static void switchTab(int index) {
+    if (index >= 0 && index <= 4) {
+      tabNotifier.value = index;
+    }
+  }
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -24,6 +33,27 @@ class _AppShellState extends State<AppShell> {
     SehatAiScreen(),
     ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = AppShell.tabNotifier.value;
+    AppShell.tabNotifier.addListener(_onTabChange);
+  }
+
+  @override
+  void dispose() {
+    AppShell.tabNotifier.removeListener(_onTabChange);
+    super.dispose();
+  }
+
+  void _onTabChange() {
+    if (mounted && _currentIndex != AppShell.tabNotifier.value) {
+      setState(() {
+        _currentIndex = AppShell.tabNotifier.value;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +71,7 @@ class _AppShellState extends State<AppShell> {
         bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: (index) {
-            setState(() => _currentIndex = index);
+            AppShell.switchTab(index);
           },
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           height: 68,

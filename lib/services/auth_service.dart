@@ -134,6 +134,20 @@ class AuthService {
     }
   }
 
+  /// Update password for the current recovery session or authenticated user.
+  Future<UserResponse> updatePassword(String newPassword) async {
+    try {
+      final response = await _client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      return response;
+    } on AuthException catch (e) {
+      throw _getFriendlyAuthMessage(e.message);
+    } catch (e) {
+      throw _getGenericErrorMessage(e);
+    }
+  }
+
   /// Authoritative role resolution from public.profiles table.
   /// Strict validation: returns 'patient', 'doctor', or null if not found/invalid.
   Future<String?> getUserProfileRole(String userId) async {
@@ -173,6 +187,17 @@ class AuthService {
   /// Translates raw Supabase AuthException messages into friendly user feedback.
   static String _getFriendlyAuthMessage(String rawMessage) {
     final lower = rawMessage.toLowerCase();
+    if (lower.contains('over_email_send_rate_limit') ||
+        lower.contains('email_rate_limit') ||
+        lower.contains('email rate limit') ||
+        lower.contains('once every')) {
+      return 'For security purposes, you can only request a password reset email once every 60 seconds. Please wait before trying again.';
+    }
+    if (lower.contains('over_request_rate_limit') ||
+        lower.contains('too many requests') ||
+        lower.contains('rate limit')) {
+      return 'Too many requests. Please wait a few moments before trying again.';
+    }
     if (lower.contains('invalid login credentials') ||
         lower.contains('invalid credentials') ||
         lower.contains('wrong password')) {
@@ -196,12 +221,12 @@ class AuthService {
         lower.contains('connection')) {
       return 'Network connection error. Please check your internet and try again.';
     }
-    if (lower.contains('too many requests') ||
-        lower.contains('rate limit')) {
-      return 'Too many login attempts. Please wait a few moments and try again.';
-    }
     return rawMessage;
   }
+
+  /// Public utility to parse friendly auth error messages.
+  static String getFriendlyAuthMessage(String rawMessage) =>
+      _getFriendlyAuthMessage(rawMessage);
 
   /// Translates generic system errors into user-friendly feedback.
   static String _getGenericErrorMessage(dynamic error) {

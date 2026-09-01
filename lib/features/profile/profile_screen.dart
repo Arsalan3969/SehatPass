@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
@@ -7,12 +8,140 @@ import 'widgets/profile_header.dart';
 import 'widgets/profile_info_row.dart';
 import 'widgets/profile_menu_row.dart';
 import '../emergency_qr/emergency_qr_screen.dart';
-import '../doctor/onboarding/doctor_onboarding_screen.dart';
-import '../doctor/doctor_shell_screen.dart';
+import '../emergency_qr/manage_emergency_info_screen.dart';
+import 'widgets/edit_profile_bottom_sheet.dart';
 import '../../services/auth_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = true;
+  String _fullName = 'Patient';
+  String _email = '';
+  String _dateOfBirth = 'Not specified';
+  String _gender = 'Not specified';
+  String _bloodGroup = 'Not specified';
+  String _emergencyContact = 'Not set';
+  String _emergencyRelationship = 'Not set';
+  String _emergencyPhone = 'Not set';
+  String _allergies = 'None added';
+  String _medicalConditions = 'None added';
+  int _activeMedicinesCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    final userId = user.id;
+    _email = user.email ?? '';
+
+    try {
+      final client = Supabase.instance.client;
+
+      // 1. Fetch Profile
+      try {
+        final profile = await client
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (profile != null) {
+          final name = profile['full_name']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            _fullName = name;
+          }
+          final email = profile['email']?.toString().trim();
+          if (email != null && email.isNotEmpty) {
+            _email = email;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback name if needed
+      if (_fullName == 'Patient' && _email.isNotEmpty && _email.contains('@')) {
+        final uname = _email.split('@').first;
+        _fullName = uname[0].toUpperCase() + uname.substring(1);
+      }
+
+      // 2. Fetch Patient Profile
+      try {
+        final patientProfile = await client
+            .from('patient_profiles')
+            .select('date_of_birth, gender, blood_group, allergies, medical_conditions')
+            .eq('patient_id', userId)
+            .maybeSingle();
+
+        if (patientProfile != null) {
+          if (patientProfile['date_of_birth'] != null) {
+            _dateOfBirth = patientProfile['date_of_birth'].toString();
+          }
+          if (patientProfile['gender'] != null && patientProfile['gender'].toString().isNotEmpty) {
+            _gender = patientProfile['gender'].toString();
+          }
+          if (patientProfile['blood_group'] != null && patientProfile['blood_group'].toString().isNotEmpty) {
+            _bloodGroup = patientProfile['blood_group'].toString();
+          }
+          if (patientProfile['allergies'] != null && patientProfile['allergies'].toString().isNotEmpty) {
+            _allergies = patientProfile['allergies'].toString();
+          }
+          if (patientProfile['medical_conditions'] != null && patientProfile['medical_conditions'].toString().isNotEmpty) {
+            _medicalConditions = patientProfile['medical_conditions'].toString();
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fetch Emergency Settings
+      try {
+        final emergency = await client
+            .from('emergency_settings')
+            .select('contact_name, contact_relationship, contact_phone')
+            .eq('patient_id', userId)
+            .maybeSingle();
+
+        if (emergency != null) {
+          if (emergency['contact_name'] != null && emergency['contact_name'].toString().isNotEmpty) {
+            _emergencyContact = emergency['contact_name'].toString();
+          }
+          if (emergency['contact_relationship'] != null && emergency['contact_relationship'].toString().isNotEmpty) {
+            _emergencyRelationship = emergency['contact_relationship'].toString();
+          }
+          if (emergency['contact_phone'] != null && emergency['contact_phone'].toString().isNotEmpty) {
+            _emergencyPhone = emergency['contact_phone'].toString();
+          }
+        }
+      } catch (_) {}
+
+      // 4. Fetch Active Medicines Count
+      try {
+        final medicines = await client
+            .from('patient_medicines')
+            .select('id')
+            .eq('patient_id', userId)
+            .eq('is_active', true);
+        _activeMedicinesCount = medicines.length;
+      } catch (_) {}
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -127,12 +256,34 @@ class ProfileScreen extends StatelessWidget {
 
               // ── Profile Header ───────────────────────────────────────────
               ProfileHeader(
-                name: 'Abdul Wahab',
-                email: 'abdul@example.com',
-                onEditProfile: () => _showComingSoon(
-                  context,
-                  'Profile editing will be available soon.',
-                ),
+                name: _isLoading ? 'Loading...' : _fullName,
+                email: _isLoading ? '...' : _email,
+                onEditProfile: () {
+                  EditProfileBottomSheet.show(
+                    context,
+                    initialFullName: _fullName,
+                    initialDob: _dateOfBirth,
+                    initialGender: _gender,
+                    initialBloodGroup: _bloodGroup,
+                    initialAllergies: _allergies,
+                    initialMedicalConditions: _medicalConditions,
+                    onProfileUpdated: () {
+                      _loadProfileData();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Profile updated successfully!'),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                },
               ),
 
               const SizedBox(height: 24),
@@ -149,22 +300,22 @@ class ProfileScreen extends StatelessWidget {
                     AppCard(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
-                        children: const [
+                        children: [
                           ProfileInfoRow(
                             label: 'Full Name',
-                            value: 'Abdul Wahab',
+                            value: _isLoading ? 'Loading...' : _fullName,
                           ),
                           ProfileInfoRow(
                             label: 'Date of Birth',
-                            value: '15 March 2005',
+                            value: _isLoading ? '...' : _dateOfBirth,
                           ),
                           ProfileInfoRow(
                             label: 'Gender',
-                            value: 'Male',
+                            value: _isLoading ? '...' : _gender,
                           ),
                           ProfileInfoRow(
                             label: 'Blood Group',
-                            value: 'O+',
+                            value: _isLoading ? '...' : _bloodGroup,
                             isLast: true,
                           ),
                         ],
@@ -188,18 +339,18 @@ class ProfileScreen extends StatelessWidget {
                     AppCard(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
-                        children: const [
+                        children: [
                           ProfileInfoRow(
                             label: 'Emergency Contact',
-                            value: 'Muhammad Arsalan',
+                            value: _isLoading ? '...' : _emergencyContact,
                           ),
                           ProfileInfoRow(
                             label: 'Relationship',
-                            value: 'Friend',
+                            value: _isLoading ? '...' : _emergencyRelationship,
                           ),
                           ProfileInfoRow(
                             label: 'Phone',
-                            value: '+92 XXX XXXXXXX',
+                            value: _isLoading ? '...' : _emergencyPhone,
                             isLast: true,
                           ),
                         ],
@@ -207,10 +358,15 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     _ManageContactButton(
-                      onTap: () => _showComingSoon(
-                        context,
-                        'Emergency contact management will be available soon.',
-                      ),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ManageEmergencyInfoScreen(),
+                          ),
+                        );
+                        _loadProfileData();
+                      },
                     ),
                   ],
                 ),
@@ -231,21 +387,23 @@ class ProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         children: [
-                          const ProfileInfoRow(
+                          ProfileInfoRow(
                             label: 'Blood Group',
-                            value: 'O+',
+                            value: _isLoading ? '...' : _bloodGroup,
                           ),
-                          const ProfileInfoRow(
+                          ProfileInfoRow(
                             label: 'Allergies',
-                            value: 'None added',
+                            value: _isLoading ? '...' : _allergies,
                           ),
-                          const ProfileInfoRow(
+                          ProfileInfoRow(
                             label: 'Medical Conditions',
-                            value: 'None added',
+                            value: _isLoading ? '...' : _medicalConditions,
                           ),
                           ProfileInfoRow(
                             label: 'Current Medicines',
-                            value: '3 medicines',
+                            value: _isLoading
+                                ? '...'
+                                : '$_activeMedicinesCount ${_activeMedicinesCount == 1 ? "medicine" : "medicines"}',
                             isLast: true,
                             valueColor: AppColors.primary,
                           ),
@@ -270,57 +428,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     );
                   },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Healthcare Providers (Doctor Portal) ──────────────────────
-              _buildSection(
-                context: context,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SectionHeader(title: 'Healthcare Providers'),
-                    const SizedBox(height: 12),
-                    AppCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          ProfileMenuRow(
-                            icon: Icons.dashboard_outlined,
-                            label: 'Doctor Dashboard (Live Portal)',
-                            iconColor: AppColors.primary,
-                            iconBgColor: AppColors.primarySurface,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const DoctorShellScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          ProfileMenuRow(
-                            icon: Icons.medical_services_outlined,
-                            label: 'Doctor Onboarding (Setup Flow)',
-                            iconColor: AppColors.primary,
-                            iconBgColor: AppColors.primarySurface,
-                            isLast: true,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const DoctorOnboardingScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ),
 
@@ -407,7 +514,7 @@ class ProfileScreen extends StatelessWidget {
                 color: AppColors.textSecondary,
                 size: 20,
               ),
-              onPressed: null, // settings tap reserved
+              onPressed: null,
               visualDensity: VisualDensity.compact,
               tooltip: 'Settings',
             ),

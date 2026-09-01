@@ -51,11 +51,25 @@ class DoctorProfileScreen extends StatelessWidget {
                                 width: 2,
                               ),
                             ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              size: 42,
-                              color: AppColors.primary,
-                            ),
+                            child: doctor.photoUrl != null &&
+                                    doctor.photoUrl!.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: Image.network(
+                                      doctor.photoUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => const Icon(
+                                        Icons.person_rounded,
+                                        size: 42,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person_rounded,
+                                    size: 42,
+                                    color: AppColors.primary,
+                                  ),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -65,7 +79,7 @@ class DoctorProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            doctor.specialization,
+                            '${doctor.specialization} • ${doctor.qualifications}',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w500,

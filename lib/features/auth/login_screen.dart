@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -8,8 +9,13 @@ import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback? onToggleMode;
+  final Future<void> Function(String email)? onResendVerification;
 
-  const LoginScreen({super.key, this.onToggleMode});
+  const LoginScreen({
+    super.key,
+    this.onToggleMode,
+    this.onResendVerification,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -23,14 +29,39 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isResending = false;
+  int _resendCooldownSeconds = 0;
+  Timer? _resendCooldownTimer;
   String? _errorMessage;
   String? _successMessage;
 
   @override
   void dispose() {
+    _resendCooldownTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _startResendCooldown([int seconds = 60]) {
+    _resendCooldownTimer?.cancel();
+    setState(() {
+      _resendCooldownSeconds = seconds;
+    });
+
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_resendCooldownSeconds > 1) {
+          _resendCooldownSeconds--;
+        } else {
+          _resendCooldownSeconds = 0;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   Future<void> _handleLogin() async {
@@ -64,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleResendVerification([String? explicitEmail]) async {
+    if (_resendCooldownSeconds > 0) return;
+
     final email = (explicitEmail ?? _emailController.text).trim();
     if (email.isEmpty ||
         !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
@@ -78,18 +111,31 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await AuthService.instance.resendVerificationEmail(email: email);
+      if (widget.onResendVerification != null) {
+        await widget.onResendVerification!(email);
+      } else {
+        await AuthService.instance.resendVerificationEmail(email: email);
+      }
       if (mounted) {
         setState(() {
           _successMessage =
               'Verification email resent to $email. Please check your inbox.';
         });
+        _startResendCooldown(60);
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
         });
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('rate limit') ||
+            errStr.contains('too many') ||
+            errStr.contains('once every') ||
+            errStr.contains('over_email_send_rate_limit') ||
+            errStr.contains('over_request_rate_limit')) {
+          _startResendCooldown(60);
+        }
       }
     } finally {
       if (mounted) {
@@ -363,7 +409,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton.icon(
-                                  onPressed: _isResending
+                                  onPressed: (_isResending ||
+                                          _resendCooldownSeconds > 0)
                                       ? null
                                       : () => _handleResendVerification(),
                                   icon: const Icon(
@@ -371,16 +418,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     size: 16,
                                   ),
                                   label: Text(
-                                    _isResending
-                                        ? 'Resending...'
-                                        : 'Resend Verification Email',
+                                    _resendCooldownSeconds > 0
+                                        ? 'Resend in ${_resendCooldownSeconds}s'
+                                        : (_isResending
+                                            ? 'Resending...'
+                                            : 'Resend Verification Email'),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     ),
                                   ),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: AppColors.primary,
+                                    foregroundColor: (_resendCooldownSeconds >
+                                                0 ||
+                                            _isResending)
+                                        ? AppColors.textTertiary
+                                        : AppColors.primary,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: 6,
@@ -520,15 +573,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Resend Verification Email Link
                     Center(
                       child: GestureDetector(
-                        onTap: _isResending ? null : () => _handleResendVerification(),
+                        onTap: (_isResending || _resendCooldownSeconds > 0)
+                            ? null
+                            : () => _handleResendVerification(),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Text(
-                            _isResending
-                                ? 'Resending verification email...'
-                                : 'Resend verification email',
+                            _resendCooldownSeconds > 0
+                                ? 'Resend verification email (${_resendCooldownSeconds}s)'
+                                : (_isResending
+                                    ? 'Resending verification email...'
+                                    : 'Resend verification email'),
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.primary,
+                              color: (_resendCooldownSeconds > 0 || _isResending)
+                                  ? AppColors.textTertiary
+                                  : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

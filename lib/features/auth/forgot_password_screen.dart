@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -5,7 +6,12 @@ import '../../services/auth_service.dart';
 import '../../shared/widgets/app_card.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+  final Future<void> Function(String email)? onResetPassword;
+
+  const ForgotPasswordScreen({
+    super.key,
+    this.onResetPassword,
+  });
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -18,13 +24,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _emailSent = false;
   String? _errorMessage;
 
+  int _cooldownSeconds = 0;
+  Timer? _cooldownTimer;
+
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _emailController.dispose();
     super.dispose();
   }
 
+  void _startCooldown([int seconds = 60]) {
+    _cooldownTimer?.cancel();
+    setState(() {
+      _cooldownSeconds = seconds;
+    });
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_cooldownSeconds > 1) {
+          _cooldownSeconds--;
+        } else {
+          _cooldownSeconds = 0;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
   Future<void> _handleResetPassword() async {
+    if (_cooldownSeconds > 0) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -32,15 +65,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _errorMessage = null;
     });
 
+    final email = _emailController.text.trim();
+
     try {
-      await AuthService.instance.resetPassword(
-        email: _emailController.text.trim(),
-      );
+      if (widget.onResetPassword != null) {
+        await widget.onResetPassword!(email);
+      } else {
+        await AuthService.instance.resetPassword(email: email);
+      }
+
       if (mounted) {
         setState(() {
           _isLoading = false;
           _emailSent = true;
         });
+        _startCooldown(60);
       }
     } catch (e) {
       if (mounted) {
@@ -48,6 +87,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           _isLoading = false;
           _errorMessage = e.toString();
         });
+        // If it's a rate limit error, trigger cooldown to prevent repeated attempts
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('rate limit') ||
+            errStr.contains('too many') ||
+            errStr.contains('once every') ||
+            errStr.contains('over_email_send_rate_limit') ||
+            errStr.contains('over_request_rate_limit')) {
+          _startCooldown(60);
+        }
       }
     }
   }
@@ -80,6 +128,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Widget _buildFormView() {
+    final bool isButtonDisabled = _isLoading || _cooldownSeconds > 0;
+
     return Form(
       key: _formKey,
       child: Column(
@@ -216,7 +266,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleResetPassword,
+              onPressed: isButtonDisabled ? null : _handleResetPassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -235,9 +285,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Send Reset Link',
-                      style: TextStyle(
+                  : Text(
+                      _cooldownSeconds > 0
+                          ? 'Resend in ${_cooldownSeconds}s'
+                          : 'Send Reset Link',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -286,6 +338,44 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
+
+        // Resend option in success view
+        if (_cooldownSeconds > 0)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Resend available in ${_cooldownSeconds}s',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _handleResetPassword,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text(
+                  'Resend Reset Link',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         SizedBox(
           height: 52,
           child: ElevatedButton(

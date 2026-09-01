@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../models/chat_message.dart';
+import '../models/citation_item.dart';
 
-/// A single chat bubble for both user and AI messages.
+/// A single chat bubble for both user and AI messages with rich Markdown rendering.
 class AiChatBubble extends StatelessWidget {
   final ChatMessage message;
 
@@ -12,23 +14,25 @@ class AiChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final hasCitations = !isUser && message.citations.isNotEmpty;
 
     return Padding(
       padding: EdgeInsets.only(
         left: isUser ? 48 : 0,
         right: isUser ? 0 : 48,
-        bottom: 10,
+        bottom: 12,
       ),
       child: Row(
         mainAxisAlignment:
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // AI avatar (shown on left for AI messages)
           if (!isUser) ...[
             Container(
               width: 30,
               height: 30,
+              margin: const EdgeInsets.only(top: 2),
               decoration: BoxDecoration(
                 color: AppColors.primarySurface,
                 borderRadius: BorderRadius.circular(10),
@@ -47,7 +51,9 @@ class AiChatBubble extends StatelessWidget {
           Flexible(
             child: Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 11),
+                horizontal: 14,
+                vertical: 12,
+              ),
               decoration: BoxDecoration(
                 color: isUser ? AppColors.primary : AppColors.surface,
                 borderRadius: BorderRadius.only(
@@ -56,9 +62,7 @@ class AiChatBubble extends StatelessWidget {
                   bottomLeft: Radius.circular(isUser ? 16 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 16),
                 ),
-                border: isUser
-                    ? null
-                    : Border.all(color: AppColors.border),
+                border: isUser ? null : Border.all(color: AppColors.border),
                 boxShadow: [
                   BoxShadow(
                     color: isUser
@@ -69,13 +73,104 @@ class AiChatBubble extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Text(
-                message.text,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: isUser ? Colors.white : AppColors.textPrimary,
-                  height: 1.5,
-                  fontSize: 14,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isUser)
+                    Text(
+                      message.text,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: Colors.white,
+                        height: 1.4,
+                        fontSize: 14,
+                      ),
+                    )
+                  else
+                    MarkdownBody(
+                      data: message.text,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textPrimary,
+                          height: 1.5,
+                          fontSize: 14,
+                        ),
+                        strong: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        h1: AppTextStyles.headingSmall.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        h2: AppTextStyles.headingSmall.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        h3: AppTextStyles.headingSmall.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        listBullet: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        listIndent: 20.0,
+                        blockquote: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        blockquoteDecoration: BoxDecoration(
+                          color: AppColors.surfaceSecondary,
+                          borderRadius: BorderRadius.circular(4),
+                          border: const Border(
+                            left: BorderSide(
+                              color: AppColors.primary,
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                        code: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12.5,
+                          color: Color(0xFF1B4D3E),
+                          backgroundColor: AppColors.surfaceSecondary,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: AppColors.surfaceSecondary,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                      ),
+                    ),
+                  if (hasCitations) ...[
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: AppColors.border),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_outlined,
+                          size: 13,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Medical References',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ...message.citations.map((c) => _buildCitationItem(c)),
+                  ],
+                ],
               ),
             ),
           ),
@@ -83,96 +178,35 @@ class AiChatBubble extends StatelessWidget {
       ),
     );
   }
-}
 
-/// Animated typing indicator shown while AI is "thinking".
-class AiTypingIndicator extends StatefulWidget {
-  const AiTypingIndicator({super.key});
-
-  @override
-  State<AiTypingIndicator> createState() => _AiTypingIndicatorState();
-}
-
-class _AiTypingIndicatorState extends State<AiTypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
+  Widget _buildCitationItem(CitationItem citation) {
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD3EDE0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppColors.primarySurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFA7D9C0)),
+          Text(
+            citation.title,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
             ),
-            child: const Icon(
-              Icons.psychology_outlined,
-              color: AppColors.primary,
-              size: 16,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(16),
-              ),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (_, _) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(3, (i) {
-                    final offset = (i / 3);
-                    final t = (_controller.value + offset) % 1.0;
-                    final opacity = (t < 0.5 ? t * 2 : (1 - t) * 2)
-                        .clamp(0.3, 1.0);
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Opacity(
-                        opacity: opacity,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                );
-              },
+          const SizedBox(height: 2),
+          Text(
+            citation.source,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 10,
             ),
           ),
         ],

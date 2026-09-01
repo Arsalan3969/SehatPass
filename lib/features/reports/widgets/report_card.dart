@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/dummy_data.dart';
+import '../../home/models/medical_report_model.dart';
 
 /// Maps a [ReportCategory] to a badge color pair (background, text).
 ({Color bg, Color text}) _categoryColors(ReportCategory cat) {
@@ -34,9 +35,9 @@ IconData _categoryIcon(ReportCategory cat) {
   }
 }
 
-/// A single report list card.
+/// A card representing a patient medical report from `public.medical_reports`.
 class ReportCard extends StatelessWidget {
-  final ReportItem report;
+  final MedicalReportModel report;
   final VoidCallback? onTap;
 
   const ReportCard({
@@ -47,7 +48,7 @@ class ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _categoryColors(report.category);
+    final colors = _categoryColors(report.reportCategory);
 
     return GestureDetector(
       onTap: onTap,
@@ -76,7 +77,7 @@ class ReportCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
-                _categoryIcon(report.category),
+                _categoryIcon(report.reportCategory),
                 color: colors.text,
                 size: 24,
               ),
@@ -88,10 +89,10 @@ class ReportCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(report.name, style: AppTextStyles.labelLarge),
+                  Text(report.title, style: AppTextStyles.labelLarge),
                   const SizedBox(height: 3),
                   Text(
-                    report.lab,
+                    report.labFacility,
                     style: AppTextStyles.bodyMedium.copyWith(fontSize: 13),
                   ),
                   const SizedBox(height: 6),
@@ -106,7 +107,8 @@ class ReportCard extends StatelessWidget {
                             color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 4),
-                          Text(report.date, style: AppTextStyles.bodySmall),
+                          Text(report.formattedDate,
+                              style: AppTextStyles.bodySmall),
                         ],
                       ),
                       const SizedBox(width: 10),
@@ -119,7 +121,7 @@ class ReportCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          report.category.label,
+                          report.categoryLabel,
                           style: AppTextStyles.caption.copyWith(
                             color: colors.text,
                             fontWeight: FontWeight.w600,
@@ -127,6 +129,15 @@ class ReportCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (report.storageFilePath != null &&
+                          report.storageFilePath!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.attach_file_rounded,
+                          size: 14,
+                          color: AppColors.textTertiary,
+                        ),
+                      ],
                     ],
                   ),
                 ],

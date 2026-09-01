@@ -23,69 +23,101 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     _currentStatus = widget.appointment.status;
   }
 
+  bool _isCancelling = false;
+
   void _confirmCancel() {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: AppColors.surface,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.emergencySurface,
-                borderRadius: BorderRadius.circular(10),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: AppColors.surface,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.emergencySurface,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.cancel_outlined,
+                    color: AppColors.emergency, size: 20),
               ),
-              child: const Icon(Icons.cancel_outlined,
-                  color: AppColors.emergency, size: 20),
+              const SizedBox(width: 12),
+              const Text('Cancel Appointment',
+                  style: AppTextStyles.headingSmall),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to cancel your appointment with ${widget.appointment.doctor.name}? This action cannot be undone.',
+            style: AppTextStyles.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isCancelling ? null : () => Navigator.pop(ctx),
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary),
+              child: const Text('Keep Appointment'),
             ),
-            const SizedBox(width: 12),
-            const Text('Cancel Appointment',
-                style: AppTextStyles.headingSmall),
+              TextButton(
+                onPressed: _isCancelling
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(ctx);
+                        setDialogState(() => _isCancelling = true);
+                        try {
+                          await AppointmentRepository.instance
+                              .cancelAppointment(
+                                  appointmentId: widget.appointment.id);
+                          if (!mounted) return;
+                          setState(
+                              () => _currentStatus = AppointmentStatus.cancelled);
+                          navigator.pop();
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: const Row(
+                                children: [
+                                  Icon(Icons.check_circle_outline_rounded,
+                                      color: Colors.white, size: 18),
+                                  SizedBox(width: 10),
+                                  Text('Appointment cancelled.'),
+                                ],
+                              ),
+                              backgroundColor: AppColors.emergency,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        } catch (e) {
+                          setDialogState(() => _isCancelling = false);
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString()),
+                              backgroundColor: AppColors.emergency,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.emergency),
+              child: _isCancelling
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.emergency),
+                    )
+                  : const Text('Cancel Appointment',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
           ],
         ),
-        content: Text(
-          'Are you sure you want to cancel your appointment with ${widget.appointment.doctor.name}? This action cannot be undone.',
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary),
-            child: const Text('Keep Appointment'),
-          ),
-          TextButton(
-            onPressed: () {
-              AppointmentRepository.instance
-                  .cancelAppointment(widget.appointment.id);
-              setState(() => _currentStatus = AppointmentStatus.cancelled);
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          color: Colors.white, size: 18),
-                      SizedBox(width: 10),
-                      Text('Appointment cancelled.'),
-                    ],
-                  ),
-                  backgroundColor: AppColors.emergency,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.emergency),
-            child: const Text('Cancel Appointment',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ],
       ),
     );
   }
@@ -211,7 +243,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       child: Column(
                         children: [
                           _detailRow(Icons.confirmation_number_outlined,
-                              'Appointment ID', apt.id),
+                              'Appointment ID', apt.referenceNo),
                           const Divider(height: 1, color: AppColors.divider),
                           _detailRow(Icons.calendar_today_outlined, 'Date',
                               apt.formattedDate),

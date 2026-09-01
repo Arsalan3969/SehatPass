@@ -73,7 +73,7 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                         size: 16, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      'Appointment ID: ${appointment.id}',
+                      'Appointment ID: ${appointment.referenceNo}',
                       style: AppTextStyles.labelLarge.copyWith(
                         color: AppColors.primary,
                         fontSize: 13,

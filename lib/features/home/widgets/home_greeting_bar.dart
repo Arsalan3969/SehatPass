@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/constants/dummy_data.dart';
 
 /// Top greeting bar with dynamic time-based greeting and notification icon.
 class HomeGreetingBar extends StatelessWidget {
-  const HomeGreetingBar({super.key});
+  final String? patientName;
+  final bool isLoading;
+
+  const HomeGreetingBar({
+    super.key,
+    this.patientName,
+    this.isLoading = false,
+  });
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -16,6 +22,10 @@ class HomeGreetingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = (patientName != null && patientName!.trim().isNotEmpty)
+        ? patientName!.trim()
+        : 'there';
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -32,7 +42,7 @@ class HomeGreetingBar extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${DummyData.patientName} 👋',
+                '$displayName 👋',
                 style: AppTextStyles.headingLarge,
               ),
             ],
