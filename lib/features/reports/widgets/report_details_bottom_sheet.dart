@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../home/models/medical_report_model.dart';
@@ -57,24 +58,30 @@ class _ReportDetailsBottomSheetState extends State<ReportDetailsBottomSheet> {
 
     try {
       final url = await widget.repository.getReportSignedUrl(storagePath);
-      if (mounted) {
+      if (!mounted) return;
+
+      if (url != null && url.isNotEmpty) {
         setState(() {
           _signedUrl = url;
           _isLoadingUrl = false;
         });
 
-        if (url != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Secure access link generated.',
-                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-              ),
-              backgroundColor: AppColors.primary,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+        final uri = Uri.parse(url);
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (!launched && mounted) {
+          await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingUrl = false;
+            _errorMessage =
+                'Unable to generate secure file link. The file may no longer be available.';
+          });
         }
       }
     } catch (e) {
@@ -307,6 +314,38 @@ class _ReportDetailsBottomSheetState extends State<ReportDetailsBottomSheet> {
                 const SizedBox(height: 18),
               ],
 
+              // Extracted Text Content (if available)
+              if (report.extractedText != null &&
+                  report.extractedText!.trim().isNotEmpty) ...[
+                Text(
+                  'Extracted Report Content & Values',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSecondary,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      report.extractedText!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontFamily: 'monospace',
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+              ],
+
               // File Access Button (if storage file exists)
               if (report.storageFilePath != null &&
                   report.storageFilePath!.isNotEmpty) ...[
@@ -325,9 +364,9 @@ class _ReportDetailsBottomSheetState extends State<ReportDetailsBottomSheet> {
                                   AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Icon(Icons.file_open_outlined, size: 18),
+                        : const Icon(Icons.picture_as_pdf_rounded, size: 18),
                     label: Text(
-                      _signedUrl != null ? 'File Link Ready' : 'Access Report Document',
+                      _signedUrl != null ? 'Open PDF Again' : 'Open PDF Document',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(

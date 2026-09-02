@@ -7,7 +7,9 @@ import 'appointment_detail_screen.dart';
 import 'find_doctor_screen.dart';
 
 class MyAppointmentsScreen extends StatefulWidget {
-  const MyAppointmentsScreen({super.key});
+  final AppointmentRepository? repository;
+
+  const MyAppointmentsScreen({super.key, this.repository});
 
   @override
   State<MyAppointmentsScreen> createState() => _MyAppointmentsScreenState();
@@ -15,6 +17,9 @@ class MyAppointmentsScreen extends StatefulWidget {
 
 class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     with SingleTickerProviderStateMixin {
+  AppointmentRepository get _repo =>
+      widget.repository ?? AppointmentRepository.instance;
+
   late TabController _tabController;
   bool _isLoading = true;
   String? _errorMessage;
@@ -24,7 +29,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     // Listen to repository changes to rebuild the list
-    AppointmentRepository.instance.addListener(_onRepoChanged);
+    _repo.addListener(_onRepoChanged);
     _loadAppointments();
   }
 
@@ -35,7 +40,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     });
 
     try {
-      await AppointmentRepository.instance.getPatientAppointments();
+      await _repo.getPatientAppointments();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -58,7 +63,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    AppointmentRepository.instance.removeListener(_onRepoChanged);
+    _repo.removeListener(_onRepoChanged);
     super.dispose();
   }
 
@@ -366,16 +371,23 @@ class _AppointmentCard extends StatelessWidget {
               // Status badge
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 9, vertical: 4),
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _statusBg,
+                  color: appointment.rawStatus == 'pending'
+                      ? const Color(0xFFFEF3C7)
+                      : _statusBg,
                   borderRadius: BorderRadius.circular(20),
+                  border: appointment.rawStatus == 'pending'
+                      ? Border.all(color: const Color(0xFFFDE68A))
+                      : null,
                 ),
                 child: Text(
-                  appointment.status.label,
+                  appointment.displayStatus,
                   style: AppTextStyles.caption.copyWith(
-                    color: _statusColor,
-                    fontWeight: FontWeight.w600,
+                    color: appointment.rawStatus == 'pending'
+                        ? const Color(0xFF92400E)
+                        : _statusColor,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -404,16 +416,26 @@ class _AppointmentCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   )),
               const Spacer(),
-              // Paid badge
+              // Payment badge
               Row(
                 children: [
-                  const Icon(Icons.check_circle_outline_rounded,
-                      size: 14, color: AppColors.primary),
+                  Icon(
+                    appointment.paymentStatus == PaymentStatus.paid
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.point_of_sale_rounded,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 4),
-                  Text(appointment.paymentStatus.label,
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    appointment.paymentStatus == PaymentStatus.paid
+                        ? 'Paid'
+                        : 'Cash in Person',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ],

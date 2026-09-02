@@ -10,8 +10,6 @@ import 'package:sehatpass/features/appointments/find_doctor_screen.dart';
 import 'package:sehatpass/features/appointments/models/appointment_model.dart';
 import 'package:sehatpass/features/appointments/models/doctor_model.dart';
 import 'package:sehatpass/features/appointments/my_appointments_screen.dart';
-import 'package:sehatpass/features/appointments/payment_screen.dart';
-import 'package:sehatpass/features/appointments/review_appointment_screen.dart';
 
 class MockAppointmentRepository extends AppointmentRepository {
   List<Doctor> doctorsToReturn;
@@ -203,10 +201,11 @@ Appointment createTestAppointment({
     date: date ?? DateTime(2026, 9, 1),
     time: time,
     consultationFee: 2000,
-    platformFee: 100,
+    platformFee: 0,
     status: status,
     rawStatus: rawStatus,
-    paymentStatus: PaymentStatus.paid,
+    paymentStatus: PaymentStatus.pending,
+    paymentMethod: 'cash',
   );
 }
 
@@ -346,9 +345,10 @@ void main() {
       expect(insertMap['appointment_date'], '2026-09-01');
       expect(insertMap['appointment_time'], '10:00 AM');
       expect(insertMap['consultation_fee'], 2000);
-      expect(insertMap['platform_fee'], 100);
-      expect(insertMap['total_amount'], 2100);
+      expect(insertMap['platform_fee'], 0);
+      expect(insertMap['total_amount'], 2000);
       expect(insertMap['status'], 'pending');
+      expect(insertMap['payment_method'], 'cash');
     });
   });
 
@@ -409,12 +409,14 @@ void main() {
 
   group('Widget Tests for Appointment Screens', () {
     testWidgets('FindDoctorScreen renders doctor list from repository and supports search', (tester) async {
-      AppointmentRepository.instance.addAppointment(createTestAppointment());
+      final mockRepo = MockAppointmentRepository(
+        doctorsToReturn: [createTestDoctor()],
+      );
 
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const FindDoctorScreen(),
+          home: FindDoctorScreen(repository: mockRepo),
         ),
       );
 
@@ -422,6 +424,7 @@ void main() {
 
       expect(find.text('Find a Doctor'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
     });
 
     testWidgets('DoctorProfileScreen renders details, clinic, and services', (tester) async {
@@ -443,7 +446,7 @@ void main() {
       expect(find.text('Book Appointment'), findsOneWidget);
     });
 
-    testWidgets('BookAppointmentScreen allows date and time selection', (tester) async {
+    testWidgets('BookAppointmentScreen allows date and time selection and shows cash info', (tester) async {
       final doc = createTestDoctor();
 
       await tester.pumpWidget(
@@ -458,54 +461,11 @@ void main() {
       expect(find.text('Book Appointment'), findsOneWidget);
       expect(find.text('Select Date'), findsOneWidget);
       expect(find.text('Select Time'), findsOneWidget);
-      expect(find.text('Continue'), findsOneWidget);
+      expect(find.text('Payment: Cash in Person'), findsOneWidget);
+      expect(find.text('Request Appointment'), findsOneWidget);
     });
 
-    testWidgets('ReviewAppointmentScreen renders fee breakdown and proceed button', (tester) async {
-      final doc = createTestDoctor();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: ReviewAppointmentScreen(
-            doctor: doc,
-            date: DateTime(2026, 9, 1),
-            time: '10:00 AM',
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.text('Review Appointment'), findsOneWidget);
-      expect(find.text('Fee Breakdown'), findsOneWidget);
-      expect(find.text('Proceed to Payment'), findsOneWidget);
-    });
-
-    testWidgets('PaymentScreen renders payment methods and summary', (tester) async {
-      final doc = createTestDoctor();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: PaymentScreen(
-            doctor: doc,
-            date: DateTime(2026, 9, 1),
-            time: '10:00 AM',
-            platformFee: 100,
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.text('Payment'), findsOneWidget);
-      expect(find.text('Payment Method'), findsOneWidget);
-      expect(find.text('Credit / Debit Card'), findsOneWidget);
-      expect(find.text('Pay Rs. 2100'), findsOneWidget);
-    });
-
-    testWidgets('AppointmentConfirmationScreen renders reference ID and summary', (tester) async {
+    testWidgets('AppointmentConfirmationScreen renders reference ID, cash notice, and pending status', (tester) async {
       final apt = createTestAppointment();
 
       await tester.pumpWidget(
@@ -517,17 +477,23 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Appointment Confirmed'), findsOneWidget);
-      expect(find.text('Appointment ID: SP-APT-0001'), findsOneWidget);
+      expect(find.text('Appointment Request Submitted'), findsOneWidget);
+      expect(find.text('Reference: SP-APT-0001'), findsOneWidget);
+      expect(find.text('Status: Pending Doctor Acceptance'), findsOneWidget);
+      expect(find.text('Cash in person (Pay at clinic)'), findsOneWidget);
       expect(find.text('View My Appointments'), findsOneWidget);
       expect(find.text('Back to Home'), findsOneWidget);
     });
 
     testWidgets('MyAppointmentsScreen renders tabs (Upcoming, Past, Cancelled)', (tester) async {
+      final mockRepo = MockAppointmentRepository(
+        appointmentsToReturn: [createTestAppointment()],
+      );
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MyAppointmentsScreen(),
+          home: MyAppointmentsScreen(repository: mockRepo),
         ),
       );
 
@@ -554,6 +520,7 @@ void main() {
       expect(find.text('Appointment Details'), findsOneWidget);
       expect(find.text('Appointment ID'), findsOneWidget);
       expect(find.text('SP-APT-0001'), findsOneWidget);
+      expect(find.text('Cash in Person'), findsOneWidget);
       expect(find.text('Cancel Appointment'), findsOneWidget);
 
       // Tap Cancel Appointment to show dialog

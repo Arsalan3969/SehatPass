@@ -221,12 +221,23 @@ Deno.serve(async (req: Request) => {
   const token = url.searchParams.get("token") || "";
 
   const acceptHeader = req.headers.get("Accept") || "";
-  const wantsJson = acceptHeader.includes("application/json") || url.searchParams.get("format") === "json";
+  // Only return JSON if explicitly requested via query param ?format=json OR pure application/json Accept header without text/html
+  const wantsJson =
+    url.searchParams.get("format") === "json" ||
+    (acceptHeader.startsWith("application/json") && !acceptHeader.includes("text/html"));
 
-  const corsHeaders = {
+  const corsHeaders: Record<string, string> = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
+  };
+
+  // HTML-specific headers that signal browser-intended response to the CDN/gateway
+  const htmlHeaders: Record<string, string> = {
+    ...corsHeaders,
+    "Content-Type": "text/html; charset=utf-8",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
   };
 
   if (req.method === "OPTIONS") {
@@ -244,14 +255,14 @@ Deno.serve(async (req: Request) => {
     }
     return new Response(renderHtmlProfile(null, false), {
       status: 404,
-      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/html; charset=utf-8",
+      },
     });
   }
 
   try {
-    const envKeys = Object.keys(Deno.env.toObject());
-    console.log("[emergency-access] available env keys:", envKeys);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseKey =
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
@@ -271,18 +282,24 @@ Deno.serve(async (req: Request) => {
       p_token: token.trim(),
     });
 
-    console.log(`[emergency-access] token=${token.trim()} error=${JSON.stringify(error)} data=${JSON.stringify(data)}`);
+    const responseHeaders = new Headers();
+    responseHeaders.set("Access-Control-Allow-Origin", "*");
+    responseHeaders.set("Access-Control-Allow-Headers", "authorization, x-client-info, apikey, content-type");
+    responseHeaders.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    responseHeaders.set("Content-Type", "text/html; charset=utf-8");
+    responseHeaders.set("content-type", "text/html; charset=utf-8");
+    responseHeaders.set("X-Content-Type-Options", "nosniff");
 
     if (error || !data || (data as Record<string, unknown>).is_active === false) {
       if (wantsJson) {
-        return new Response(JSON.stringify({ error: "Emergency profile not found or inactive.", rpc_error: error, rpc_data: data }), {
+        return new Response(JSON.stringify({ error: "Emergency profile not found or inactive." }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       return new Response(renderHtmlProfile(null, false), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+        headers: responseHeaders,
       });
     }
 
@@ -297,13 +314,22 @@ Deno.serve(async (req: Request) => {
 
     return new Response(renderHtmlProfile(emergencyData, true), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      headers: responseHeaders,
     });
   } catch (err) {
     console.error("[emergency-access] Error:", (err as Error).message);
+    if (wantsJson) {
+      return new Response(JSON.stringify({ error: "Internal server error." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const errHeaders = new Headers();
+    errHeaders.set("Access-Control-Allow-Origin", "*");
+    errHeaders.set("Content-Type", "text/html; charset=utf-8");
     return new Response(renderHtmlProfile(null, false), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      headers: errHeaders,
     });
   }
 });

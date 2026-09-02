@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
+import '../reports/data/medical_reports_repository.dart';
+import '../reports/widgets/report_details_bottom_sheet.dart';
 import 'data/patient_home_repository.dart';
+import 'models/medical_report_model.dart';
 import 'models/patient_home_data.dart';
 import 'widgets/home_greeting_bar.dart';
 import 'widgets/health_overview_card.dart';
@@ -34,6 +37,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    AppShell.tabNotifier.addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    AppShell.tabNotifier.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (AppShell.tabNotifier.value == 0 && mounted) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -59,6 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _openReportDetails(MedicalReportModel report) {
+    ReportDetailsBottomSheet.show(
+      context,
+      report: report,
+      repository: MedicalReportsRepository.instance,
+      onDeleted: () async {
+        await _loadData();
+      },
+    );
   }
 
   @override
@@ -108,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     reports: _data?.reports ?? const [],
                     isLoading: _isLoading,
                     onViewAll: () => AppShell.switchTab(1),
+                    onReportTap: _openReportDetails,
                   ),
                   const SizedBox(height: 28),
                 ],

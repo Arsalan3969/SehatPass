@@ -40,7 +40,7 @@ void main() {
           }
         ],
         'metadata': {
-          'model': 'gemini-2.0-flash',
+          'model': 'gemini-3.6-flash',
           'retrieval_count': 1,
         },
       };
@@ -50,7 +50,7 @@ void main() {
       expect(response.answer, 'Metformin is prescribed for type 2 diabetes management.');
       expect(response.citations.length, 1);
       expect(response.citations.first.title, 'Metformin Overview');
-      expect(response.metadata?['model'], 'gemini-2.0-flash');
+      expect(response.metadata?['model'], 'gemini-3.6-flash');
     });
 
     test('ChatMessage parses from Supabase database row', () {

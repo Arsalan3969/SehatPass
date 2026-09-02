@@ -54,7 +54,7 @@ class EmergencyRepository {
     } catch (_) {
       baseUrl = null;
     }
-    baseUrl ??= 'https://ihggyxptikmrgfvybbym.supabase.co';
+    baseUrl ??= 'https://vnavceiizdjekbmtzpsn.supabase.co';
     final cleanBase =
         baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     return '$cleanBase/functions/v1/emergency-access?token=${token.trim()}';

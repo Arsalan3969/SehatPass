@@ -13,6 +13,7 @@ class MedicalReportModel {
   final int? fileSizeBytes;
   final String? mimeType;
   final String? summary;
+  final String? extractedText;
   final DateTime? createdAt;
 
   const MedicalReportModel({
@@ -27,6 +28,7 @@ class MedicalReportModel {
     this.fileSizeBytes,
     this.mimeType,
     this.summary,
+    this.extractedText,
     this.createdAt,
   });
 
@@ -42,6 +44,7 @@ class MedicalReportModel {
     int? fileSizeBytes,
     String? mimeType,
     String? summary,
+    String? extractedText,
     DateTime? createdAt,
   }) {
     return MedicalReportModel(
@@ -56,6 +59,7 @@ class MedicalReportModel {
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
       mimeType: mimeType ?? this.mimeType,
       summary: summary ?? this.summary,
+      extractedText: extractedText ?? this.extractedText,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -77,6 +81,7 @@ class MedicalReportModel {
           : int.tryParse(map['file_size_bytes']?.toString() ?? ''),
       mimeType: map['mime_type']?.toString(),
       summary: map['summary']?.toString(),
+      extractedText: map['extracted_text']?.toString(),
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'].toString())
           : null,
@@ -98,6 +103,7 @@ class MedicalReportModel {
       'file_size_bytes': fileSizeBytes,
       'mime_type': mimeType,
       'summary': summary,
+      'extracted_text': extractedText,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     };
   }

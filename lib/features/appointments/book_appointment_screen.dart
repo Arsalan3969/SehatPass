@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import 'appointment_confirmation_screen.dart';
+import 'data/appointment_repository.dart';
 import 'models/doctor_model.dart';
-import 'review_appointment_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final Doctor doctor;
@@ -15,6 +16,7 @@ class BookAppointmentScreen extends StatefulWidget {
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
+  bool _isSubmitting = false;
 
   /// Generate next 7 days starting today.
   List<DateTime> get _dates {
@@ -30,7 +32,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     '3:00 PM',
   ];
 
-  bool get _canContinue => _selectedDate != null && _selectedTime != null;
+  bool get _canContinue =>
+      _selectedDate != null && _selectedTime != null && !_isSubmitting;
 
   String _dayLabel(DateTime d) {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -39,10 +42,61 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   String _monthLabel(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[d.month - 1];
+  }
+
+  Future<void> _handleRequestAppointment() async {
+    if (!_canContinue) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final appointment = await AppointmentRepository.instance.bookAppointment(
+        doctor: widget.doctor,
+        date: _selectedDate!,
+        time: _selectedTime!,
+        consultationFee: widget.doctor.consultationFee,
+        platformFee: 0,
+        paymentMethod: 'cash',
+      );
+
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AppointmentConfirmationScreen(
+            appointment: appointment,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is String ? e : 'Unable to request appointment. Please try again.',
+          ),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -129,8 +183,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     const SizedBox(height: 24),
 
                     // ── Select Date ──────────────────────────────────────
-                    Text('Select Date',
-                        style: AppTextStyles.headingSmall),
+                    Text('Select Date', style: AppTextStyles.headingSmall),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 80,
@@ -259,13 +312,59 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       }).toList(),
                     ),
 
+                    const SizedBox(height: 24),
+
+                    // ── Cash Payment & Doctor Review Notice ───────────────
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySurface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.payments_outlined,
+                                  size: 18, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Payment: Cash in Person',
+                                style: AppTextStyles.labelLarge.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Pay the consultation fee (Rs. ${widget.doctor.consultationFee}) directly to the doctor at the clinic.',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Note: Submitting this request creates a pending appointment. Dr. ${widget.doctor.name} will review and accept or decline your request.',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 28),
                   ],
                 ),
               ),
             ),
 
-            // ── Continue button ───────────────────────────────────────────
+            // ── Request Appointment button ────────────────────────────────
             Container(
               color: AppColors.surface,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -273,20 +372,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _canContinue
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ReviewAppointmentScreen(
-                                doctor: widget.doctor,
-                                date: _selectedDate!,
-                                time: _selectedTime!,
-                              ),
-                            ),
-                          );
-                        }
-                      : null,
+                  onPressed: _canContinue ? _handleRequestAppointment : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -298,7 +384,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     textStyle: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                  child: const Text('Continue'),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Request Appointment'),
                 ),
               ),
             ),

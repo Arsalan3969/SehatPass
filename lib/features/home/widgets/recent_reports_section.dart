@@ -10,12 +10,14 @@ class RecentReportsSection extends StatelessWidget {
   final List<MedicalReportModel> reports;
   final bool isLoading;
   final VoidCallback? onViewAll;
+  final void Function(MedicalReportModel report)? onReportTap;
 
   const RecentReportsSection({
     super.key,
     this.reports = const [],
     this.isLoading = false,
     this.onViewAll,
+    this.onReportTap,
   });
 
   @override
@@ -93,66 +95,76 @@ class RecentReportsSection extends StatelessWidget {
                 final isLast = index == displayedReports.length - 1;
                 return Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          // Report icon
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.description_outlined,
-                              color: AppColors.primary,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Report info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(report.title,
-                                    style: AppTextStyles.labelLarge),
-                                const SizedBox(height: 3),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 11,
-                                      color: AppColors.textTertiary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(report.formattedDate,
-                                        style: AppTextStyles.bodySmall),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Report type badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              report.categoryLabel,
-                              style: AppTextStyles.caption.copyWith(
+                    InkWell(
+                      onTap: onReportTap != null
+                          ? () => onReportTap!(report)
+                          : null,
+                      borderRadius: isLast
+                          ? const BorderRadius.vertical(bottom: Radius.circular(16))
+                          : (index == 0
+                              ? const BorderRadius.vertical(top: Radius.circular(16))
+                              : BorderRadius.zero),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            // Report icon
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySurface,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.description_outlined,
                                 color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
+                                size: 22,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            // Report info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(report.title,
+                                      style: AppTextStyles.labelLarge),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 11,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(report.formattedDate,
+                                          style: AppTextStyles.bodySmall),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Report type badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySurface,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                report.categoryLabel,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     if (!isLast)

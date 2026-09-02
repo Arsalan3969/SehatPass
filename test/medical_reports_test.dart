@@ -72,6 +72,7 @@ class MockMedicalReportsRepository extends MedicalReportsRepository {
     int? fileSizeBytes,
     String? mimeType,
     String? summary,
+    String? extractedText,
   }) async {
     createReportCallCount++;
     lastCreatedTitle = title;
@@ -87,6 +88,7 @@ class MockMedicalReportsRepository extends MedicalReportsRepository {
       fileSizeBytes: fileSizeBytes,
       mimeType: mimeType,
       summary: summary,
+      extractedText: extractedText,
       createdAt: DateTime.now(),
     );
     reportsToReturn = [newReport, ...reportsToReturn];
@@ -377,13 +379,12 @@ void main() {
       expect(find.byType(ReportDetailsBottomSheet), findsOneWidget);
       expect(find.text('Punjab Institute of Cardiology'), findsWidgets);
       expect(find.text('Normal sinus rhythm'), findsOneWidget);
-      expect(find.text('Access Report Document'), findsOneWidget);
+      expect(find.text('Open PDF Document'), findsOneWidget);
 
       // Tap access report document
-      await tester.tap(find.text('Access Report Document'));
+      await tester.tap(find.text('Open PDF Document'));
       await tester.pumpAndSettle();
       expect(repo.signedUrlCallCount, 1);
-      expect(find.text('Secure access link generated.'), findsOneWidget);
 
       // Tap Delete Report
       await tester.ensureVisible(find.text('Delete Report'));

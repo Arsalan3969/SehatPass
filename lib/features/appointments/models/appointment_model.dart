@@ -64,10 +64,10 @@ class Appointment {
     required this.date,
     required this.time,
     required this.consultationFee,
-    this.platformFee = 100,
+    this.platformFee = 0,
     int? totalAmount,
-    this.paymentStatus = PaymentStatus.paid,
-    this.paymentMethod = 'card',
+    this.paymentStatus = PaymentStatus.pending,
+    this.paymentMethod = 'cash',
     this.status = AppointmentStatus.upcoming,
     this.rawStatus = 'pending',
     this.cancellationReason,
@@ -76,6 +76,25 @@ class Appointment {
         totalAmount = totalAmount ?? (consultationFee + platformFee);
 
   int get total => totalAmount;
+
+  String get displayStatus {
+    switch (rawStatus.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+      case 'accepted':
+        return 'Confirmed';
+      case 'completed':
+        return 'Completed';
+      case 'rejected':
+      case 'declined':
+        return 'Declined';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status.label;
+    }
+  }
 
   String get formattedDate {
     const months = [

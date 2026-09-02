@@ -7,13 +7,18 @@ import 'doctor_profile_screen.dart';
 
 /// Find a Doctor search + filter + listing screen backed by Supabase.
 class FindDoctorScreen extends StatefulWidget {
-  const FindDoctorScreen({super.key});
+  final AppointmentRepository? repository;
+
+  const FindDoctorScreen({super.key, this.repository});
 
   @override
   State<FindDoctorScreen> createState() => _FindDoctorScreenState();
 }
 
 class _FindDoctorScreenState extends State<FindDoctorScreen> {
+  AppointmentRepository get _repo =>
+      widget.repository ?? AppointmentRepository.instance;
+
   final _searchController = TextEditingController();
   String _selectedSpecialty = 'All';
   String _searchQuery = '';
@@ -42,7 +47,7 @@ class _FindDoctorScreenState extends State<FindDoctorScreen> {
     });
 
     try {
-      final doctors = await AppointmentRepository.instance.getDoctors();
+      final doctors = await _repo.getDoctors();
       if (mounted) {
         setState(() {
           _doctors = doctors;
@@ -313,6 +318,7 @@ class _FindDoctorScreenState extends State<FindDoctorScreen> {
   }
 
   Widget _buildEmptyState() {
+    final isFiltering = _selectedSpecialty != 'All' || _searchQuery.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -322,18 +328,24 @@ class _FindDoctorScreenState extends State<FindDoctorScreen> {
             color: AppColors.surfaceSecondary,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(
-            Icons.search_off_rounded,
+          child: Icon(
+            isFiltering ? Icons.search_off_rounded : Icons.medical_services_outlined,
             size: 40,
             color: AppColors.textTertiary,
           ),
         ),
         const SizedBox(height: 16),
-        Text('No doctors found', style: AppTextStyles.headingSmall),
+        Text(
+          isFiltering ? 'No doctors found' : 'No doctors available',
+          style: AppTextStyles.headingSmall,
+        ),
         const SizedBox(height: 6),
         Text(
-          'Try adjusting your search or filter.',
+          isFiltering
+              ? 'Try adjusting your search or filter.'
+              : 'There are currently no doctors available for booking. Please check back later.',
           style: AppTextStyles.bodyMedium,
+          textAlign: TextAlign.center,
         ),
       ],
     );

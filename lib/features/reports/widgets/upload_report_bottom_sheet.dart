@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
@@ -10,6 +11,7 @@ typedef UploadReportCallback = Future<void> Function({
   required DateTime reportDate,
   required String category,
   String? summary,
+  String? extractedText,
   String? fileName,
   List<int>? fileBytes,
   int? fileSizeBytes,
@@ -171,6 +173,20 @@ class _UploadReportBottomSheetState extends State<UploadReportBottomSheet> {
     });
   }
 
+  String? _extractTextFromPdfBytes(Uint8List bytes) {
+    try {
+      final PdfDocument document = PdfDocument(inputBytes: bytes);
+      final PdfTextExtractor extractor = PdfTextExtractor(document);
+      final String text = extractor.extractText();
+      document.dispose();
+      final trimmed = text.trim();
+      return trimmed.isNotEmpty ? trimmed : null;
+    } catch (e) {
+      debugPrint('UploadReportBottomSheet: Text extraction note: $e');
+      return null;
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (_isUploading) return;
     if (_formKey.currentState?.validate() ?? false) {
@@ -180,6 +196,11 @@ class _UploadReportBottomSheetState extends State<UploadReportBottomSheet> {
       });
 
       try {
+        String? extractedText;
+        if (_selectedFileBytes != null) {
+          extractedText = _extractTextFromPdfBytes(_selectedFileBytes!);
+        }
+
         await widget.onUpload(
           title: _titleController.text.trim(),
           labFacility: _labController.text.trim(),
@@ -188,6 +209,7 @@ class _UploadReportBottomSheetState extends State<UploadReportBottomSheet> {
           summary: _summaryController.text.trim().isNotEmpty
               ? _summaryController.text.trim()
               : null,
+          extractedText: extractedText,
           fileName: _selectedFileName,
           fileBytes: _selectedFileBytes,
           fileSizeBytes: _selectedFileSize,

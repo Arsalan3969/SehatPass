@@ -101,3 +101,26 @@ declare module "@supabase/supabase-js" {
     options?: SupabaseClientOptions
   ): SupabaseClient<Database, SchemaName, Schema>;
 }
+
+declare module "jsr:@supabase/supabase-js@2" {
+  export * from "@supabase/supabase-js";
+}
+
+declare module "jsr:@supabase/supabase-js" {
+  export * from "@supabase/supabase-js";
+}
+
+declare module "npm:@supabase/supabase-js@2" {
+  export * from "@supabase/supabase-js";
+}
+
+declare module "npm:@supabase/supabase-js" {
+  export * from "@supabase/supabase-js";
+}
+
+declare module "jsr:*" {
+  const content: any;
+  export default content;
+  export const createClient: any;
+  export const SupabaseClient: any;
+}

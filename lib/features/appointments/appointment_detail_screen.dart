@@ -278,21 +278,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ),
                           const Divider(height: 1, color: AppColors.divider),
                           _detailRow(
-                            Icons.receipt_outlined,
-                            'Platform Fee',
-                            'Rs. ${apt.platformFee}',
+                            Icons.point_of_sale_rounded,
+                            'Payment Method',
+                            'Cash in Person',
                           ),
                           const Divider(height: 1, color: AppColors.divider),
                           _detailRow(
-                            Icons.account_balance_wallet_outlined,
-                            'Total',
-                            'Rs. ${apt.total}',
-                          ),
-                          const Divider(height: 1, color: AppColors.divider),
-                          _detailRow(
-                            Icons.check_circle_outline_rounded,
+                            Icons.info_outline_rounded,
                             'Payment Status',
-                            apt.paymentStatus.label,
+                            apt.paymentStatus == PaymentStatus.paid
+                                ? 'Paid'
+                                : 'Pay in cash at clinic',
                             valueColor: AppColors.primary,
                             isLast: true,
                           ),

@@ -21,61 +21,73 @@ class AppointmentConfirmationScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 24),
 
-              // ── Success Icon ─────────────────────────────────────────────
+              // ── Request Submitted Icon ───────────────────────────────────
               Container(
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
+                  color: const Color(0xFFFEF3C7),
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.25), width: 3),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    width: 3,
+                  ),
                 ),
                 child: const Icon(
-                  Icons.check_rounded,
+                  Icons.schedule_send_rounded,
                   size: 46,
-                  color: AppColors.primary,
+                  color: Color(0xFFD97706),
                 ),
               ),
               const SizedBox(height: 20),
 
               // ── Heading ──────────────────────────────────────────────────
               Text(
-                'Appointment Confirmed',
+                'Appointment Request Submitted',
                 style: AppTextStyles.headingLarge.copyWith(
-                  color: AppColors.primary,
+                  color: const Color(0xFF92400E),
+                  fontSize: 22,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Your appointment has been booked successfully.',
-                style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
+                'Your request has been sent to Dr. ${appointment.doctor.name}. Once the doctor accepts, your booking will be confirmed.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-              // ── Appointment ID badge ─────────────────────────────────────
+              // ── Status Badge ─────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.2)),
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.confirmation_number_outlined,
-                        size: 16, color: AppColors.primary),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD97706),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Appointment ID: ${appointment.referenceNo}',
-                      style: AppTextStyles.labelLarge.copyWith(
-                        color: AppColors.primary,
+                    const Text(
+                      'Status: Pending Doctor Acceptance',
+                      style: TextStyle(
+                        color: Color(0xFF92400E),
+                        fontWeight: FontWeight.w700,
                         fontSize: 13,
                       ),
                     ),
@@ -83,7 +95,36 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // ── Appointment ID badge ─────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSecondary,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.confirmation_number_outlined,
+                        size: 15, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Reference: ${appointment.referenceNo}',
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
 
               // ── Appointment summary card ─────────────────────────────────
               Container(
@@ -151,9 +192,9 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, color: AppColors.divider),
                     _confirmRow(
-                      Icons.check_circle_outline_rounded,
-                      'Payment',
-                      'Paid',
+                      Icons.point_of_sale_rounded,
+                      'Payment Method',
+                      'Cash in person (Pay at clinic)',
                       valueColor: AppColors.primary,
                       isLast: true,
                     ),
@@ -161,14 +202,53 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 16),
+
+              // ── Important Patient Notice Card ────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSecondary,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Important Information',
+                          style: AppTextStyles.labelLarge.copyWith(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• Submitting a request does not guarantee confirmation.\n'
+                      '• The doctor will review your request and accept or decline.\n'
+                      '• Payment is made in cash directly to the doctor upon your visit.\n'
+                      '• You will see the updated status in My Appointments.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        height: 1.45,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
 
               // ── Action buttons ───────────────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.push(
+                  onPressed: () => Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
                         builder: (_) => const MyAppointmentsScreen()),

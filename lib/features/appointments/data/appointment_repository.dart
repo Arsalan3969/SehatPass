@@ -74,29 +74,6 @@ class AppointmentRepository extends ChangeNotifier {
           full_name,
           email,
           profile_photo_url
-        ),
-        clinics (
-          id,
-          name,
-          address,
-          city,
-          phone,
-          description,
-          logo_url,
-          is_active
-        ),
-        clinic_services (
-          id,
-          name,
-          fee,
-          is_active
-        ),
-        doctor_availability (
-          id,
-          day_of_week,
-          start_time,
-          end_time,
-          is_available
         )
       ''').eq('is_published', true);
 
@@ -107,8 +84,53 @@ class AppointmentRepository extends ChangeNotifier {
       }
 
       final response = await query;
-      final List<Doctor> doctors = (response as List).map((item) {
-        return Doctor.fromMap(Map<String, dynamic>.from(item as Map));
+      final rawList = response as List;
+      if (rawList.isEmpty) {
+        return [];
+      }
+
+      final doctorIds = rawList
+          .map((item) => (item as Map)['doctor_id']?.toString())
+          .where((id) => id != null && id.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+      // Fetch clinics, clinic_services, and doctor_availability in parallel
+      final relatedResults = await Future.wait([
+        _client.from('clinics').select().inFilter('doctor_id', doctorIds).eq('is_active', true),
+        _client.from('clinic_services').select().inFilter('doctor_id', doctorIds).eq('is_active', true),
+        _client.from('doctor_availability').select().inFilter('doctor_id', doctorIds).eq('is_available', true),
+      ]);
+
+      final clinicsList = (relatedResults[0] as List).cast<Map<String, dynamic>>();
+      final servicesList = (relatedResults[1] as List).cast<Map<String, dynamic>>();
+      final availList = (relatedResults[2] as List).cast<Map<String, dynamic>>();
+
+      final Map<String, List<Map<String, dynamic>>> clinicsByDoctor = {};
+      for (final c in clinicsList) {
+        final dId = c['doctor_id']?.toString() ?? '';
+        clinicsByDoctor.putIfAbsent(dId, () => []).add(c);
+      }
+
+      final Map<String, List<Map<String, dynamic>>> servicesByDoctor = {};
+      for (final s in servicesList) {
+        final dId = s['doctor_id']?.toString() ?? '';
+        servicesByDoctor.putIfAbsent(dId, () => []).add(s);
+      }
+
+      final Map<String, List<Map<String, dynamic>>> availByDoctor = {};
+      for (final a in availList) {
+        final dId = a['doctor_id']?.toString() ?? '';
+        availByDoctor.putIfAbsent(dId, () => []).add(a);
+      }
+
+      final List<Doctor> doctors = rawList.map((item) {
+        final itemMap = Map<String, dynamic>.from(item as Map);
+        final dId = itemMap['doctor_id']?.toString() ?? '';
+        itemMap['clinics'] = clinicsByDoctor[dId] ?? [];
+        itemMap['clinic_services'] = servicesByDoctor[dId] ?? [];
+        itemMap['doctor_availability'] = availByDoctor[dId] ?? [];
+        return Doctor.fromMap(itemMap);
       }).toList();
 
       if (searchQuery != null && searchQuery.trim().isNotEmpty) {
@@ -231,15 +253,15 @@ class AppointmentRepository extends ChangeNotifier {
     required DateTime date,
     required String time,
     required int consultationFee,
-    int platformFee = 100,
+    int platformFee = 0,
     String? clinicId,
     String? serviceId,
     String? serviceName,
-    String paymentMethod = 'card',
+    String paymentMethod = 'cash',
   }) async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
-      throw 'Please sign in to book an appointment.';
+      throw 'Please sign in to request an appointment.';
     }
 
     final dateStr = _formatDate(date);
@@ -255,7 +277,7 @@ class AppointmentRepository extends ChangeNotifier {
           .inFilter('status', ['pending', 'confirmed']);
 
       if ((conflictCheck as List).isNotEmpty) {
-        throw 'This time slot has already been booked. Please choose another slot.';
+        throw 'This time slot has already been requested or booked. Please choose another slot.';
       }
     } on String {
       rethrow;
@@ -283,7 +305,7 @@ class AppointmentRepository extends ChangeNotifier {
       'consultation_fee': consultationFee,
       'platform_fee': platformFee,
       'total_amount': consultationFee + platformFee,
-      'payment_status': 'paid',
+      'payment_status': 'pending',
       'payment_method': paymentMethod,
       'status': 'pending',
     };

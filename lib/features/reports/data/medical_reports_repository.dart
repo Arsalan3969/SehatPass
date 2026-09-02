@@ -134,6 +134,7 @@ class MedicalReportsRepository {
     int? fileSizeBytes,
     String? mimeType,
     String? summary,
+    String? extractedText,
   }) async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
@@ -169,6 +170,9 @@ class MedicalReportsRepository {
       if (summary != null && summary.trim().isNotEmpty) {
         insertData['summary'] = summary.trim();
       }
+      if (extractedText != null && extractedText.trim().isNotEmpty) {
+        insertData['extracted_text'] = extractedText.trim();
+      }
 
       final response = await _client
           .from('medical_reports')
@@ -191,6 +195,7 @@ class MedicalReportsRepository {
     required DateTime reportDate,
     required String category,
     String? summary,
+    String? extractedText,
     required String fileName,
     required List<int> fileBytes,
     String? mimeType,
@@ -233,6 +238,7 @@ class MedicalReportsRepository {
       fileSizeBytes: fileBytes.length,
       mimeType: mimeType,
       summary: summary,
+      extractedText: extractedText,
     );
   }
 
