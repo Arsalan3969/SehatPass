@@ -107,6 +107,27 @@ class _SetAvailabilityStepState extends State<SetAvailabilityStep> {
       return;
     }
 
+    final startMinutes = _startTime.hour * 60 + _startTime.minute;
+    final endMinutes = _endTime.hour * 60 + _endTime.minute;
+    if (endMinutes <= startMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('End time must be after start time.'),
+            ],
+          ),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
     final updated = widget.initialData.copyWith(
       selectedDays: _selectedDays,
       startTime: _startTime,

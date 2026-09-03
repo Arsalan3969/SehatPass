@@ -79,7 +79,9 @@ class DoctorProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${doctor.specialization} • ${doctor.qualifications}',
+                            doctor.qualifications.isNotEmpty
+                                ? '${doctor.specialization} • ${doctor.qualifications}'
+                                : doctor.specialization,
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w500,
@@ -102,13 +104,6 @@ class DoctorProfileScreen extends StatelessWidget {
                                 horizontal: 16, vertical: 14),
                             child: Row(
                               children: [
-                                _infoChip(
-                                  Icons.star_rounded,
-                                  '${doctor.rating}',
-                                  const Color(0xFFF59E0B),
-                                  const Color(0xFFFFFBEB),
-                                ),
-                                const SizedBox(width: 10),
                                 _infoChip(
                                   Icons.location_on_outlined,
                                   doctor.location,

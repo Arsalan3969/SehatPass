@@ -179,6 +179,9 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1, color: AppColors.divider),
+                    _confirmRow(Icons.medical_services_outlined, 'Service',
+                        appointment.serviceName),
+                    const Divider(height: 1, color: AppColors.divider),
                     _confirmRow(Icons.calendar_today_outlined, 'Date',
                         appointment.formattedDate),
                     const Divider(height: 1, color: AppColors.divider),
@@ -193,7 +196,7 @@ class AppointmentConfirmationScreen extends StatelessWidget {
                     const Divider(height: 1, color: AppColors.divider),
                     _confirmRow(
                       Icons.point_of_sale_rounded,
-                      'Payment Method',
+                      'Payment',
                       'Cash in person (Pay at clinic)',
                       valueColor: AppColors.primary,
                       isLast: true,

@@ -7,6 +7,7 @@ import '../models/appointment_model.dart';
 ///
 /// All mutations and queries for patient appointments are strictly scoped to the
 /// authenticated user's ID (`Supabase.instance.client.auth.currentUser?.id`).
+/// Payment is Cash at Clinic only (no online payments, platform fees, or payment processing).
 class AppointmentRepository extends ChangeNotifier {
   final SupabaseClient? _clientOverride;
 
@@ -171,10 +172,6 @@ class AppointmentRepository extends ChangeNotifier {
         appointment_date,
         appointment_time,
         consultation_fee,
-        platform_fee,
-        total_amount,
-        payment_status,
-        payment_method,
         status,
         cancellation_reason,
         created_at,
@@ -214,19 +211,19 @@ class AppointmentRepository extends ChangeNotifier {
         final doctorMap = {
           'id': itemMap['doctor_id'],
           'doctor_id': itemMap['doctor_id'],
-          'name': doctorProfileMap['full_name'] ?? 'Doctor',
-          'full_name': doctorProfileMap['full_name'] ?? 'Doctor',
+          'name': doctorProfileMap['full_name'] ?? '',
+          'full_name': doctorProfileMap['full_name'] ?? '',
           'photo_url': doctorProfileMap['profile_photo_url'],
-          'specialization': docProf?['specialization'] ?? 'General Physician',
-          'qualifications': docProf?['qualifications'] ?? 'MBBS',
-          'experience_years': docProf?['experience_years'] ?? '1 year',
+          'specialization': docProf?['specialization'] ?? '',
+          'qualifications': docProf?['qualifications'] ?? '',
+          'experience_years': docProf?['experience_years'] ?? '',
           'bio': docProf?['bio'] ?? '',
-          'rating': docProf?['rating'] ?? 5.0,
+          'rating': docProf?['rating'] ?? 0.0,
           'total_reviews': docProf?['total_reviews'] ?? 0,
-          'clinic': clinicProf?['name'] ?? 'SehatPass Partner Clinic',
-          'location': clinicProf?['city'] ?? clinicProf?['address'] ?? 'Lahore',
+          'clinic': clinicProf?['name'] ?? '',
+          'location': clinicProf?['city'] ?? clinicProf?['address'] ?? '',
           'clinic_id': clinicProf?['id'] ?? itemMap['clinic_id'],
-          'consultation_fee': itemMap['consultation_fee'] ?? 1500,
+          'consultation_fee': itemMap['consultation_fee'] ?? 0,
         };
 
         itemMap['doctor'] = doctorMap;
@@ -243,25 +240,30 @@ class AppointmentRepository extends ChangeNotifier {
     }
   }
 
-  /// Books a new appointment with double-booking prevention.
+  /// Books a new appointment with authoritative database service-fee enforcement and double-booking prevention.
   ///
   /// Concurrency Strategy:
   /// 1. UX availability pre-check: Query active bookings (`pending` or `confirmed`) for the target doctor, date, and time.
-  /// 2. Database-side concurrency protection: Postgres conditional unique index / constraint violation (`23505`) is caught and mapped to a friendly collision error.
+  /// 2. Database-side concurrency protection: Postgres partial unique index `idx_appointments_no_double_booking`
+  ///    enforces no double-booking at DB level.
+  /// 3. Authoritative Service Fee: Database trigger `trg_enforce_appointment_service_fee` authoritatively sets
+  ///    `consultation_fee` from `clinic_services.fee` at insert time.
   Future<Appointment> bookAppointment({
     required Doctor doctor,
     required DateTime date,
     required String time,
     required int consultationFee,
-    int platformFee = 0,
     String? clinicId,
     String? serviceId,
     String? serviceName,
-    String paymentMethod = 'cash',
   }) async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
       throw 'Please sign in to request an appointment.';
+    }
+
+    if (serviceId == null || serviceId.isEmpty) {
+      throw 'Please select a valid service for this appointment.';
     }
 
     final dateStr = _formatDate(date);
@@ -283,7 +285,6 @@ class AppointmentRepository extends ChangeNotifier {
       rethrow;
     } catch (e) {
       debugPrint('AppointmentRepository: Availability pre-check notice: $e');
-      // If error was explicit string throw above, rethrow
       if (e is String) rethrow;
     }
 
@@ -293,9 +294,8 @@ class AppointmentRepository extends ChangeNotifier {
       'reference_no': refNo,
       'patient_id': userId,
       'doctor_id': doctor.id,
-      if (clinicId != null || doctor.clinicId != null)
-        'clinic_id': clinicId ?? doctor.clinicId,
-      'service_id': ?serviceId,
+      'clinic_id': ?(clinicId ?? doctor.clinicId),
+      'service_id': serviceId,
       'service_name': serviceName ??
           (doctor.services.isNotEmpty
               ? doctor.services.first.name
@@ -303,10 +303,6 @@ class AppointmentRepository extends ChangeNotifier {
       'appointment_date': dateStr,
       'appointment_time': time,
       'consultation_fee': consultationFee,
-      'platform_fee': platformFee,
-      'total_amount': consultationFee + platformFee,
-      'payment_status': 'pending',
-      'payment_method': paymentMethod,
       'status': 'pending',
     };
 

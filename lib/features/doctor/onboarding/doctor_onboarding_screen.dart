@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../models/doctor_onboarding_data.dart';
+import '../data/doctor_repository.dart';
 import 'widgets/onboarding_progress_bar.dart';
 import 'steps/doctor_profile_step.dart';
 import 'steps/list_clinic_step.dart';
@@ -20,7 +21,33 @@ class DoctorOnboardingScreen extends StatefulWidget {
 class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
   int _currentStep = 1;
   final int _totalSteps = 5;
-  final DoctorOnboardingData _data = DoctorOnboardingData();
+  bool _isLoading = true;
+  bool _isPublishing = false;
+  DoctorOnboardingData _data = DoctorOnboardingData();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingState();
+  }
+
+  Future<void> _loadExistingState() async {
+    try {
+      final existing =
+          await DoctorRepository.instance.loadExistingOnboardingData();
+      if (mounted) {
+        setState(() {
+          _data = existing;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('DoctorOnboardingScreen: Error loading initial data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _nextStep() {
     if (_currentStep < _totalSteps) {
@@ -133,13 +160,7 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    setState(() => _data.isPublished = true);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PublishSuccessScreen(data: _data),
-                      ),
-                    );
+                    _handlePublish();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -157,6 +178,62 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handlePublish() async {
+    setState(() => _isPublishing = true);
+
+    try {
+      final publishedData =
+          await DoctorRepository.instance.publishDoctorProfile(data: _data);
+
+      if (!mounted) return;
+      setState(() {
+        _isPublishing = false;
+        _data = publishedData;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PublishSuccessScreen(data: publishedData),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isPublishing = false);
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: AppColors.surface,
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline_rounded,
+                color: AppColors.emergency, size: 24),
+            SizedBox(width: 10),
+            Text('Publish Failed', style: AppTextStyles.headingSmall),
+          ],
+        ),
+        content: Text(
+          message,
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+            child:
+                const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -214,7 +291,9 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _prevStep();
+        if (!_isPublishing) {
+          _prevStep();
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -224,7 +303,7 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded,
                 color: AppColors.textPrimary),
-            onPressed: _prevStep,
+            onPressed: _isPublishing ? null : _prevStep,
           ),
           title: Text(
             'Doctor Onboarding',
@@ -235,7 +314,7 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
               icon: const Icon(Icons.close_rounded,
                   color: AppColors.textSecondary),
               tooltip: 'Exit Setup',
-              onPressed: _confirmExit,
+              onPressed: _isPublishing ? null : _confirmExit,
             ),
           ],
           bottom: PreferredSize(
@@ -247,21 +326,71 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
           ),
         ),
         body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            child: KeyedSubtree(
-              key: ValueKey<int>(_currentStep),
-              child: _buildCurrentStep(),
-            ),
+          child: Stack(
+            children: [
+              if (_isLoading)
+                const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                )
+              else
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<int>(_currentStep),
+                    child: _buildCurrentStep(),
+                  ),
+                ),
+              if (_isPublishing)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 22),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x20000000),
+                            blurRadius: 20,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            strokeWidth: 3,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Publishing Clinic...',
+                            style: AppTextStyles.labelLarge,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+

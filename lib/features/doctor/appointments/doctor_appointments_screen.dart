@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../models/doctor_appointment_model.dart';
-import '../models/doctor_patient_model.dart';
 import '../patients/doctor_patient_detail_screen.dart';
 import 'doctor_appointment_details_screen.dart';
 
@@ -15,16 +14,22 @@ enum AppointmentFilter {
 
 class DoctorAppointmentsScreen extends StatefulWidget {
   final List<DoctorAppointmentModel> appointments;
-  final Function(DoctorAppointmentModel appointment)? onAcceptAppointment;
-  final Function(DoctorAppointmentModel appointment)? onDeclineAppointment;
-  final VoidCallback? onSwitchToPatientView;
+  final dynamic Function(DoctorAppointmentModel appointment)? onAcceptAppointment;
+  final dynamic Function(DoctorAppointmentModel appointment)? onDeclineAppointment;
+  final Future<void> Function()? onRefresh;
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback? onRetry;
 
   const DoctorAppointmentsScreen({
     super.key,
     required this.appointments,
     this.onAcceptAppointment,
     this.onDeclineAppointment,
-    this.onSwitchToPatientView,
+    this.onRefresh,
+    this.isLoading = false,
+    this.errorMessage,
+    this.onRetry,
   });
 
   @override
@@ -34,6 +39,7 @@ class DoctorAppointmentsScreen extends StatefulWidget {
 
 class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   AppointmentFilter _selectedFilter = AppointmentFilter.pending;
+  final Set<String> _updatingAppointmentIds = {};
 
   List<DoctorAppointmentModel> get _filteredAppointments {
     switch (_selectedFilter) {
@@ -77,22 +83,48 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     }
   }
 
-  void _handleAccept(DoctorAppointmentModel appointment) {
-    setState(() {
-      appointment.status = DoctorAppointmentStatus.confirmed;
-    });
-    widget.onAcceptAppointment?.call(appointment);
+  Future<void> _handleAccept(DoctorAppointmentModel appointment) async {
+    if (_updatingAppointmentIds.contains(appointment.id)) return;
+    setState(() => _updatingAppointmentIds.add(appointment.id));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Appointment for ${appointment.patientName} accepted & moved to Upcoming.',
-        ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    try {
+      if (widget.onAcceptAppointment != null) {
+        await widget.onAcceptAppointment!(appointment);
+      } else {
+        appointment.status = DoctorAppointmentStatus.confirmed;
+      }
+
+      if (mounted) {
+        setState(() {
+          appointment.status = DoctorAppointmentStatus.confirmed;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment for ${appointment.patientName} accepted & moved to Upcoming.',
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to accept appointment: $e'),
+            backgroundColor: AppColors.emergency,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingAppointmentIds.remove(appointment.id));
+      }
+    }
   }
 
   void _showDeclineConfirmation(DoctorAppointmentModel appointment) {
@@ -132,23 +164,50 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {
-                appointment.status = DoctorAppointmentStatus.cancelled;
-              });
-              widget.onDeclineAppointment?.call(appointment);
+              if (_updatingAppointmentIds.contains(appointment.id)) return;
+              setState(() => _updatingAppointmentIds.add(appointment.id));
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Appointment for ${appointment.patientName} was declined.',
-                  ),
-                  backgroundColor: AppColors.textPrimary,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              try {
+                if (widget.onDeclineAppointment != null) {
+                  await widget.onDeclineAppointment!(appointment);
+                } else {
+                  appointment.status = DoctorAppointmentStatus.cancelled;
+                }
+
+                if (mounted) {
+                  setState(() {
+                    appointment.status = DoctorAppointmentStatus.cancelled;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Appointment for ${appointment.patientName} was declined.',
+                      ),
+                      backgroundColor: AppColors.textPrimary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to decline appointment: $e'),
+                      backgroundColor: AppColors.emergency,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  setState(
+                      () => _updatingAppointmentIds.remove(appointment.id));
+                }
+              }
             },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.emergency,
@@ -169,14 +228,20 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       MaterialPageRoute(
         builder: (_) => DoctorAppointmentDetailsScreen(
           appointment: appointment,
-          onAccept: (apt) {
-            _handleAccept(apt);
+          onAccept: (apt) async {
+            await _handleAccept(apt);
           },
-          onDecline: (apt) {
-            setState(() {
+          onDecline: (apt) async {
+            if (widget.onDeclineAppointment != null) {
+              await widget.onDeclineAppointment!(apt);
+            } else {
               apt.status = DoctorAppointmentStatus.cancelled;
-            });
-            widget.onDeclineAppointment?.call(apt);
+            }
+            if (mounted) {
+              setState(() {
+                apt.status = DoctorAppointmentStatus.cancelled;
+              });
+            }
           },
         ),
       ),
@@ -185,12 +250,13 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     });
   }
 
-  void _openPatientProfile(String patientName) {
-    final patient = DoctorPatientModel.getPatientByName(patientName);
+  void _openPatientProfile(DoctorAppointmentModel apt) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => DoctorPatientDetailScreen(patient: patient),
+        builder: (_) => DoctorPatientDetailScreen(
+          patientId: apt.patientId,
+        ),
       ),
     );
   }
@@ -208,22 +274,6 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
           'Appointments',
           style: AppTextStyles.headingMedium,
         ),
-        actions: [
-          if (widget.onSwitchToPatientView != null)
-            TextButton.icon(
-              onPressed: widget.onSwitchToPatientView,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-              label: const Text('Patient View'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -281,22 +331,95 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
             const Divider(height: 1),
 
-            // Appointments List or Empty State
+            // Appointments List or Empty / Error / Loading State
             Expanded(
-              child: list.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(20),
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: list.length,
-                      separatorBuilder: (_, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final apt = list[index];
-                        return _buildAppointmentCard(apt);
-                      },
-                    ),
+              child: widget.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : widget.errorMessage != null
+                      ? _buildErrorState()
+                      : RefreshIndicator(
+                          onRefresh: widget.onRefresh ?? () async {},
+                          child: list.isEmpty
+                              ? _buildEmptyState()
+                              : ListView.separated(
+                                  padding: const EdgeInsets.all(20),
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(
+                                    parent: BouncingScrollPhysics(),
+                                  ),
+                                  itemCount: list.length,
+                                  separatorBuilder: (_, index) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final apt = list[index];
+                                    return _buildAppointmentCard(apt);
+                                  },
+                                ),
+                        ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.emergencySurface,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 36,
+                color: AppColors.emergency,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to Load Appointments',
+              style: AppTextStyles.headingSmall.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              widget.errorMessage ?? 'Please check your connection and retry.',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (widget.onRetry != null || widget.onRefresh != null) ...[
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: widget.onRetry ?? () => widget.onRefresh?.call(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try Again'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -456,7 +579,11 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${apt.patientAge} yrs • ${apt.patientGender}',
+                        apt.patientAge != null && apt.patientGender != null
+                            ? '${apt.patientAge} yrs • ${apt.patientGender}'
+                            : (apt.referenceNo.isNotEmpty
+                                ? 'Ref: ${apt.referenceNo}'
+                                : 'Patient'),
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textTertiary,
                         ),
@@ -568,7 +695,9 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _showDeclineConfirmation(apt),
+                      onPressed: _updatingAppointmentIds.contains(apt.id)
+                          ? null
+                          : () => _showDeclineConfirmation(apt),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.emergency,
                         side: const BorderSide(
@@ -580,19 +709,30 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Text(
-                        'Decline',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _updatingAppointmentIds.contains(apt.id)
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AppColors.emergency,
+                              ),
+                            )
+                          : const Text(
+                              'Decline',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _handleAccept(apt),
+                      onPressed: _updatingAppointmentIds.contains(apt.id)
+                          ? null
+                          : () => _handleAccept(apt),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -602,13 +742,22 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Accept',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _updatingAppointmentIds.contains(apt.id)
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Accept',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -623,7 +772,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
-                    onPressed: () => _openPatientProfile(apt.patientName),
+                    onPressed: () => _openPatientProfile(apt),
                     icon: const Icon(Icons.person_outline_rounded, size: 16),
                     label: const Text('View Patient'),
                     style: TextButton.styleFrom(

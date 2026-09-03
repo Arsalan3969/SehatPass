@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/doctor_repository.dart';
 import '../models/doctor_patient_model.dart';
 import 'doctor_patient_detail_screen.dart';
 
 class DoctorPatientsScreen extends StatefulWidget {
-  final VoidCallback? onSwitchToPatientView;
+  final DoctorRepository? repository;
+  final List<DoctorPatientModel>? initialPatients;
 
   const DoctorPatientsScreen({
     super.key,
-    this.onSwitchToPatientView,
+    this.repository,
+    this.initialPatients,
   });
 
   @override
@@ -17,8 +20,49 @@ class DoctorPatientsScreen extends StatefulWidget {
 }
 
 class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
-  final List<DoctorPatientModel> _allPatients = DoctorPatientModel.dummyPatients;
+  late final DoctorRepository _repository;
+  List<DoctorPatientModel> _allPatients = [];
+  bool _isLoading = false;
+  String? _errorMessage;
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? DoctorRepository.instance;
+
+    if (widget.initialPatients != null) {
+      _allPatients = List.from(widget.initialPatients!);
+    } else if (_repository.currentUserId != null) {
+      _fetchPatients();
+    } else {
+      _fetchPatients();
+    }
+  }
+
+  Future<void> _fetchPatients() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final list = await _repository.getDoctorPatients();
+      if (mounted) {
+        setState(() {
+          _allPatients = list;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   List<DoctorPatientModel> get _filteredPatients {
     if (_searchQuery.isEmpty) return _allPatients;
@@ -26,6 +70,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
     return _allPatients.where((p) {
       return p.name.toLowerCase().contains(query) ||
           p.primaryCondition.toLowerCase().contains(query) ||
+          p.medicalConditions.toLowerCase().contains(query) ||
           p.phone.contains(query);
     }).toList();
   }
@@ -43,22 +88,6 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
           'Patients',
           style: AppTextStyles.headingMedium,
         ),
-        actions: [
-          if (widget.onSwitchToPatientView != null)
-            TextButton.icon(
-              onPressed: widget.onSwitchToPatientView,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-              label: const Text('Patient View'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -121,53 +150,118 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
               ),
             ),
 
-            // Patients List
+            // Content Area (Loading / Error / Empty / List)
             Expanded(
-              child: list.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceSecondary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.person_search_rounded,
-                              size: 40,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No patients found',
-                            style: AppTextStyles.headingSmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'No matches found for "$_searchQuery".',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      itemCount: list.length,
-                      separatorBuilder: (_, index) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final patient = list[index];
-                        return _buildPatientCard(patient);
-                      },
-                    ),
+              child: _buildBody(list),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody(List<DoctorPatientModel> list) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: AppColors.emergencySurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  size: 40,
+                  color: AppColors.emergency,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _fetchPatients,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceSecondary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_search_rounded,
+                size: 40,
+                color: AppColors.textTertiary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isEmpty ? 'No patients found' : 'No matches found',
+              style: AppTextStyles.headingSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'Patients with confirmed or past appointments will appear here.'
+                  : 'No patients match "$_searchQuery".',
+              style: AppTextStyles.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchPatients,
+      color: AppColors.primary,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        itemCount: list.length,
+        separatorBuilder: (_, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final patient = list[index];
+          return _buildPatientCard(patient);
+        },
       ),
     );
   }
@@ -184,7 +278,11 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => DoctorPatientDetailScreen(patient: patient),
+              builder: (_) => DoctorPatientDetailScreen(
+                patient: patient,
+                patientId: patient.id,
+                repository: _repository,
+              ),
             ),
           );
         },
@@ -197,13 +295,13 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.primarySurface,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
-                    patient.name.isNotEmpty ? patient.name[0] : 'P',
+                    patient.name.isNotEmpty ? patient.name[0].toUpperCase() : 'P',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
@@ -235,7 +333,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Last visit: ${patient.lastVisit}',
+                      'Last visit: ${patient.lastVisit} (${patient.totalVisits} ${patient.totalVisits == 1 ? 'visit' : 'visits'})',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.textTertiary,
                       ),

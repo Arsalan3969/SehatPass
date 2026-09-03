@@ -18,24 +18,7 @@ class DoctorOnboardingData {
     this.isPublished = false,
   })  : profile = profile ?? DoctorProfileModel(),
         clinic = clinic ?? ClinicModel(),
-        services = services ??
-            [
-              ClinicServiceModel(
-                id: '1',
-                name: 'General Consultation',
-                fee: 2000,
-              ),
-              ClinicServiceModel(
-                id: '2',
-                name: 'Follow-up Consultation',
-                fee: 1500,
-              ),
-              ClinicServiceModel(
-                id: '3',
-                name: 'ECG Consultation',
-                fee: 2500,
-              ),
-            ],
+        services = services ?? [],
         availability = availability ?? DoctorAvailabilityModel();
 
   void addService(String name, double fee) {
@@ -54,6 +37,22 @@ class DoctorOnboardingData {
     services.removeWhere((s) => s.id == id);
   }
 
+  DoctorOnboardingData copyWith({
+    DoctorProfileModel? profile,
+    ClinicModel? clinic,
+    List<ClinicServiceModel>? services,
+    DoctorAvailabilityModel? availability,
+    bool? isPublished,
+  }) {
+    return DoctorOnboardingData(
+      profile: profile ?? this.profile,
+      clinic: clinic ?? this.clinic,
+      services: services ?? List.from(this.services),
+      availability: availability ?? this.availability,
+      isPublished: isPublished ?? this.isPublished,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'profile': profile.toMap(),
@@ -63,4 +62,20 @@ class DoctorOnboardingData {
       'is_published': isPublished,
     };
   }
+
+  factory DoctorOnboardingData.fromPersistedState({
+    required DoctorProfileModel profile,
+    ClinicModel? clinic,
+    List<ClinicServiceModel>? services,
+    DoctorAvailabilityModel? availability,
+  }) {
+    return DoctorOnboardingData(
+      profile: profile,
+      clinic: clinic,
+      services: (services != null && services.isNotEmpty) ? services : null,
+      availability: availability,
+      isPublished: profile.isPublished,
+    );
+  }
 }
+

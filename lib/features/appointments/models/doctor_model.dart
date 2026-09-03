@@ -54,7 +54,7 @@ class Doctor {
     required this.clinic,
     this.clinicId,
     required this.location,
-    required this.rating,
+    this.rating = 0.0,
     this.totalReviews = 0,
     required this.consultationFee,
     required this.availability,
@@ -63,17 +63,28 @@ class Doctor {
     required this.consultationHours,
     required this.services,
     this.photoUrl,
-    this.qualifications = 'MBBS',
-    this.experienceYears = '1 year',
+    this.qualifications = '',
+    this.experienceYears = '',
   });
 
   factory Doctor.fromMap(Map<String, dynamic> map) {
     // 1. Profile / Doctor Name
     final profile = map['profiles'] is Map ? map['profiles'] as Map : null;
-    final doctorName = profile?['full_name']?.toString() ??
-        map['full_name']?.toString() ??
-        map['name']?.toString() ??
-        'Doctor';
+    final rawName = profile?['full_name']?.toString().trim() ??
+        map['full_name']?.toString().trim() ??
+        map['name']?.toString().trim() ??
+        '';
+
+    final String doctorName;
+    if (rawName.isEmpty) {
+      doctorName = 'Doctor';
+    } else if (rawName.toLowerCase().startsWith('dr.') ||
+        rawName.toLowerCase().startsWith('dr ')) {
+      doctorName = rawName;
+    } else {
+      doctorName = 'Dr. $rawName';
+    }
+
     final photo = profile?['profile_photo_url']?.toString() ??
         map['profile_photo_url']?.toString() ??
         map['photo_url']?.toString();
@@ -83,35 +94,68 @@ class Doctor {
         map['id']?.toString() ??
         profile?['id']?.toString() ??
         '';
-    final specialization = map['specialization']?.toString() ?? 'General Physician';
-    final qualifications = map['qualifications']?.toString() ?? 'MBBS';
-    final experienceYears = map['experience_years']?.toString() ?? '1 year';
-    final about = map['bio']?.toString() ??
-        map['about']?.toString() ??
-        'Experienced healthcare professional committed to patient-centered care.';
-    final rating = (map['rating'] as num?)?.toDouble() ?? 5.0;
+    final rawSpec = map['specialization']?.toString().trim();
+    final specialization = (rawSpec != null && rawSpec.isNotEmpty)
+        ? rawSpec
+        : 'Specialization not provided';
+
+    final qualifications = map['qualifications']?.toString().trim() ?? '';
+    final experienceYears = map['experience_years']?.toString().trim() ?? '';
+    final rawBio = map['bio']?.toString().trim() ?? map['about']?.toString().trim();
+    final about = (rawBio != null && rawBio.isNotEmpty)
+        ? rawBio
+        : 'No biography provided yet.';
+    final rating = (map['rating'] as num?)?.toDouble() ?? 0.0;
     final totalReviews = (map['total_reviews'] as num?)?.toInt() ?? 0;
 
     // 3. Clinic fields
-    String clinicName = 'SehatPass Partner Clinic';
+    String clinicName = 'Clinic not specified';
     String? clinicId;
-    String location = 'Lahore';
+    String location = 'Location not provided';
 
     if (map['clinics'] != null) {
       if (map['clinics'] is List && (map['clinics'] as List).isNotEmpty) {
         final c = (map['clinics'] as List).first as Map;
         clinicId = c['id']?.toString();
-        clinicName = c['name']?.toString() ?? clinicName;
-        location = c['city']?.toString() ?? c['address']?.toString() ?? location;
+        final cName = c['name']?.toString().trim();
+        if (cName != null && cName.isNotEmpty) {
+          clinicName = cName;
+        }
+        final city = c['city']?.toString().trim();
+        final addr = c['address']?.toString().trim();
+        if (city != null && city.isNotEmpty && addr != null && addr.isNotEmpty) {
+          location = '$addr, $city';
+        } else if (city != null && city.isNotEmpty) {
+          location = city;
+        } else if (addr != null && addr.isNotEmpty) {
+          location = addr;
+        }
       } else if (map['clinics'] is Map) {
         final c = map['clinics'] as Map;
         clinicId = c['id']?.toString();
-        clinicName = c['name']?.toString() ?? clinicName;
-        location = c['city']?.toString() ?? c['address']?.toString() ?? location;
+        final cName = c['name']?.toString().trim();
+        if (cName != null && cName.isNotEmpty) {
+          clinicName = cName;
+        }
+        final city = c['city']?.toString().trim();
+        final addr = c['address']?.toString().trim();
+        if (city != null && city.isNotEmpty && addr != null && addr.isNotEmpty) {
+          location = '$addr, $city';
+        } else if (city != null && city.isNotEmpty) {
+          location = city;
+        } else if (addr != null && addr.isNotEmpty) {
+          location = addr;
+        }
       }
     } else {
-      clinicName = map['clinic']?.toString() ?? map['clinic_name']?.toString() ?? clinicName;
-      location = map['location']?.toString() ?? map['city']?.toString() ?? location;
+      final directClinic = map['clinic']?.toString().trim() ?? map['clinic_name']?.toString().trim();
+      if (directClinic != null && directClinic.isNotEmpty) {
+        clinicName = directClinic;
+      }
+      final directLoc = map['location']?.toString().trim() ?? map['city']?.toString().trim();
+      if (directLoc != null && directLoc.isNotEmpty) {
+        location = directLoc;
+      }
       clinicId = map['clinic_id']?.toString();
     }
 
@@ -134,22 +178,25 @@ class Doctor {
     }
 
     // Determine consultation fee from services or direct field
-    int baseFee = (map['consultation_fee'] as num?)?.toInt() ??
-        (map['consultationFee'] as num?)?.toInt() ??
-        (map['fee'] as num?)?.toInt() ??
-        1500;
+    int baseFee = 0;
     if (parsedServices.isNotEmpty) {
       baseFee = parsedServices.first.fee;
     } else {
-      parsedServices.add(DoctorService(
-        name: 'General Consultation',
-        fee: baseFee,
-      ));
+      final explicitFee = (map['consultation_fee'] as num?)?.toInt() ??
+          (map['consultationFee'] as num?)?.toInt() ??
+          (map['fee'] as num?)?.toInt();
+      if (explicitFee != null && explicitFee > 0) {
+        baseFee = explicitFee;
+        parsedServices.add(DoctorService(
+          name: 'General Consultation',
+          fee: baseFee,
+        ));
+      }
     }
 
     // 5. Availability Schedule
     final List<String> parsedDays = [];
-    String consultationHours = '10:00 AM - 4:00 PM';
+    String consultationHours = 'Consultation hours not specified';
     if (map['doctor_availability'] is List && (map['doctor_availability'] as List).isNotEmpty) {
       final availList = map['doctor_availability'] as List;
       for (final a in availList) {
@@ -171,8 +218,8 @@ class Doctor {
       parsedDays.addAll((map['availableDays'] as List).map((e) => e.toString()));
     }
 
-    if (parsedDays.isEmpty) {
-      parsedDays.addAll(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+    if (parsedDays.isNotEmpty && consultationHours == 'Consultation hours not specified') {
+      consultationHours = '10:00 AM - 4:00 PM';
     }
 
     // Availability badge label

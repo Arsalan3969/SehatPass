@@ -16,23 +16,11 @@ extension AppointmentStatusLabel on AppointmentStatus {
   }
 }
 
-/// Payment status values.
-enum PaymentStatus { paid, pending, refunded }
-
-extension PaymentStatusLabel on PaymentStatus {
-  String get label {
-    switch (this) {
-      case PaymentStatus.paid:
-        return 'Paid';
-      case PaymentStatus.pending:
-        return 'Pending';
-      case PaymentStatus.refunded:
-        return 'Refunded';
-    }
-  }
-}
-
 /// Appointment data model backed by `public.appointments` in Supabase.
+///
+/// Under SehatPass Phase 5A financial model:
+/// - Consultation fee is the authoritative snapshot of the selected doctor's service fee.
+/// - Payment is Cash at Clinic only (no online payments, platform fees, or payment processing).
 class Appointment {
   final String id;
   final String referenceNo;
@@ -44,10 +32,6 @@ class Appointment {
   final DateTime date;
   final String time;
   final int consultationFee;
-  final int platformFee;
-  final int totalAmount;
-  PaymentStatus paymentStatus;
-  final String paymentMethod;
   AppointmentStatus status;
   final String rawStatus; // 'pending' | 'confirmed' | 'completed' | 'cancelled'
   final String? cancellationReason;
@@ -64,18 +48,11 @@ class Appointment {
     required this.date,
     required this.time,
     required this.consultationFee,
-    this.platformFee = 0,
-    int? totalAmount,
-    this.paymentStatus = PaymentStatus.pending,
-    this.paymentMethod = 'cash',
     this.status = AppointmentStatus.upcoming,
     this.rawStatus = 'pending',
     this.cancellationReason,
     this.createdAt,
-  })  : referenceNo = referenceNo ?? id,
-        totalAmount = totalAmount ?? (consultationFee + platformFee);
-
-  int get total => totalAmount;
+  }) : referenceNo = referenceNo ?? id;
 
   String get displayStatus {
     switch (rawStatus.toLowerCase()) {
@@ -127,26 +104,8 @@ class Appointment {
 
     final consultationFee = (map['consultation_fee'] as num?)?.toInt() ??
         (map['consultationFee'] as num?)?.toInt() ??
+        (map['fee'] as num?)?.toInt() ??
         0;
-    final platformFee = (map['platform_fee'] as num?)?.toInt() ??
-        (map['platformFee'] as num?)?.toInt() ??
-        100;
-    final totalAmount = (map['total_amount'] as num?)?.toInt() ??
-        (consultationFee + platformFee);
-
-    // Payment Status
-    final paymentStatusStr = (map['payment_status']?.toString() ??
-            map['paymentStatus']?.toString() ??
-            'paid')
-        .toLowerCase();
-    PaymentStatus paymentStatus = PaymentStatus.paid;
-    if (paymentStatusStr.contains('pending')) {
-      paymentStatus = PaymentStatus.pending;
-    } else if (paymentStatusStr.contains('refund')) {
-      paymentStatus = PaymentStatus.refunded;
-    }
-
-    final paymentMethod = map['payment_method']?.toString() ?? 'card';
 
     // Appointment Status
     final rawStatus = (map['status']?.toString() ?? 'pending').toLowerCase();
@@ -156,8 +115,6 @@ class Appointment {
     } else if (rawStatus == 'completed') {
       uiStatus = AppointmentStatus.past;
     } else {
-      // 'pending' or 'confirmed'
-      // If the appointment date was before today and not cancelled, can be treated as past
       final today = DateTime.now();
       final justDateToday = DateTime(today.year, today.month, today.day);
       final justDateApt = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
@@ -195,10 +152,6 @@ class Appointment {
       date: parsedDate,
       time: time,
       consultationFee: consultationFee,
-      platformFee: platformFee,
-      totalAmount: totalAmount,
-      paymentStatus: paymentStatus,
-      paymentMethod: paymentMethod,
       status: uiStatus,
       rawStatus: rawStatus,
       cancellationReason: cancellationReason,
@@ -221,10 +174,6 @@ class Appointment {
       'appointment_date': dateStr,
       'appointment_time': time,
       'consultation_fee': consultationFee,
-      'platform_fee': platformFee,
-      'total_amount': totalAmount,
-      'payment_status': paymentStatus == PaymentStatus.paid ? 'paid' : 'pending',
-      'payment_method': paymentMethod,
       'status': rawStatus.isNotEmpty ? rawStatus : 'pending',
       if (cancellationReason != null) 'cancellation_reason': cancellationReason,
     };
@@ -241,10 +190,6 @@ class Appointment {
     DateTime? date,
     String? time,
     int? consultationFee,
-    int? platformFee,
-    int? totalAmount,
-    PaymentStatus? paymentStatus,
-    String? paymentMethod,
     AppointmentStatus? status,
     String? rawStatus,
     String? cancellationReason,
@@ -261,10 +206,6 @@ class Appointment {
       date: date ?? this.date,
       time: time ?? this.time,
       consultationFee: consultationFee ?? this.consultationFee,
-      platformFee: platformFee ?? this.platformFee,
-      totalAmount: totalAmount ?? this.totalAmount,
-      paymentStatus: paymentStatus ?? this.paymentStatus,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
       status: status ?? this.status,
       rawStatus: rawStatus ?? this.rawStatus,
       cancellationReason: cancellationReason ?? this.cancellationReason,

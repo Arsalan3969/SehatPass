@@ -156,7 +156,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
             _buildInputField(
               label: 'Clinic Name',
               controller: _nameController,
-              hint: 'e.g. City Heart Clinic',
+              hint: 'e.g. Al-Razi Healthcare Clinic',
               icon: Icons.storefront_outlined,
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Clinic name is required' : null,
@@ -167,7 +167,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
             _buildInputField(
               label: 'Clinic Address',
               controller: _addressController,
-              hint: 'e.g. Main Boulevard, Lahore',
+              hint: 'e.g. Plot 12-A, Main Boulevard, Gulberg III',
               icon: Icons.location_on_outlined,
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Address is required' : null,
@@ -178,7 +178,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
             _buildInputField(
               label: 'City',
               controller: _cityController,
-              hint: 'e.g. Lahore',
+              hint: 'e.g. Lahore, Karachi, Islamabad',
               icon: Icons.location_city_outlined,
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'City is required' : null,
@@ -202,7 +202,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
               label: 'Clinic Description',
               controller: _descriptionController,
               hint:
-                  'e.g. A modern clinic providing cardiology consultation and follow-up care.',
+                  'Brief overview of clinic services, facilities, and patient care.',
               icon: Icons.description_outlined,
               maxLines: 3,
               validator: (v) => v == null || v.trim().isEmpty

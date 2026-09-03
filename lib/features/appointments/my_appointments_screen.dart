@@ -160,20 +160,20 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
       controller: _tabController,
       children: [
         _AppointmentList(
-          appointments: AppointmentRepository.instance.upcoming,
+          appointments: _repo.upcoming,
           emptyMessage: 'No upcoming appointments',
           emptySubtitle: 'Book an appointment to get started.',
           showFindDoctor: true,
           onRefresh: _loadAppointments,
         ),
         _AppointmentList(
-          appointments: AppointmentRepository.instance.past,
+          appointments: _repo.past,
           emptyMessage: 'No past appointments',
           emptySubtitle: 'Your completed appointments will appear here.',
           onRefresh: _loadAppointments,
         ),
         _AppointmentList(
-          appointments: AppointmentRepository.instance.cancelled,
+          appointments: _repo.cancelled,
           emptyMessage: 'No cancelled appointments',
           emptySubtitle: 'Appointments you cancel will appear here.',
           onRefresh: _loadAppointments,
@@ -416,24 +416,20 @@ class _AppointmentCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   )),
               const Spacer(),
-              // Payment badge
+              // Fee & Cash badge
               Row(
                 children: [
-                  Icon(
-                    appointment.paymentStatus == PaymentStatus.paid
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.point_of_sale_rounded,
+                  const Icon(
+                    Icons.payments_outlined,
                     size: 14,
                     color: AppColors.primary,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    appointment.paymentStatus == PaymentStatus.paid
-                        ? 'Paid'
-                        : 'Cash in Person',
+                    'Rs. ${appointment.consultationFee}',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

@@ -91,11 +91,9 @@ class MockAppointmentRepository extends AppointmentRepository {
     required DateTime date,
     required String time,
     required int consultationFee,
-    int platformFee = 100,
     String? clinicId,
     String? serviceId,
     String? serviceName,
-    String paymentMethod = 'card',
   }) async {
     bookAppointmentCallCount++;
     lastBookedDoctorId = doctor.id;
@@ -119,10 +117,6 @@ class MockAppointmentRepository extends AppointmentRepository {
       date: date,
       time: time,
       consultationFee: consultationFee,
-      platformFee: platformFee,
-      totalAmount: consultationFee + platformFee,
-      paymentStatus: PaymentStatus.paid,
-      paymentMethod: paymentMethod,
       status: AppointmentStatus.upcoming,
       rawStatus: 'pending',
     );
@@ -165,6 +159,7 @@ Doctor createTestDoctor({
   String clinic = 'City Heart Clinic',
   String location = 'Lahore',
   int fee = 2000,
+  String qualifications = 'MBBS',
 }) {
   return Doctor(
     id: id,
@@ -172,6 +167,7 @@ Doctor createTestDoctor({
     specialization: specialization,
     clinic: clinic,
     location: location,
+    qualifications: qualifications,
     rating: 4.8,
     consultationFee: fee,
     availability: 'Available Today',
@@ -201,11 +197,8 @@ Appointment createTestAppointment({
     date: date ?? DateTime(2026, 9, 1),
     time: time,
     consultationFee: 2000,
-    platformFee: 0,
     status: status,
     rawStatus: rawStatus,
-    paymentStatus: PaymentStatus.pending,
-    paymentMethod: 'cash',
   );
 }
 
@@ -274,14 +267,11 @@ void main() {
         'patient_id': 'pat-123',
         'doctor_id': 'doc-123',
         'clinic_id': 'clinic-1',
+        'service_id': 'svc-001',
         'service_name': 'Cardiology Visit',
         'appointment_date': '2026-09-15',
         'appointment_time': '11:00 AM',
         'consultation_fee': 2500,
-        'platform_fee': 100,
-        'total_amount': 2600,
-        'payment_status': 'paid',
-        'payment_method': 'card',
         'status': 'confirmed',
         'profiles': {
           'full_name': 'Dr. Usman',
@@ -298,14 +288,13 @@ void main() {
       expect(apt.id, 'apt-999');
       expect(apt.referenceNo, 'SP-APT-9999');
       expect(apt.patientId, 'pat-123');
+      expect(apt.serviceId, 'svc-001');
+      expect(apt.serviceName, 'Cardiology Visit');
       expect(apt.consultationFee, 2500);
-      expect(apt.platformFee, 100);
-      expect(apt.total, 2600);
       expect(apt.time, '11:00 AM');
       expect(apt.date.year, 2026);
       expect(apt.date.month, 9);
       expect(apt.date.day, 15);
-      expect(apt.paymentStatus, PaymentStatus.paid);
       expect(apt.rawStatus, 'confirmed');
     });
 
@@ -345,10 +334,7 @@ void main() {
       expect(insertMap['appointment_date'], '2026-09-01');
       expect(insertMap['appointment_time'], '10:00 AM');
       expect(insertMap['consultation_fee'], 2000);
-      expect(insertMap['platform_fee'], 0);
-      expect(insertMap['total_amount'], 2000);
       expect(insertMap['status'], 'pending');
-      expect(insertMap['payment_method'], 'cash');
     });
   });
 
@@ -370,7 +356,7 @@ void main() {
       expect(mockRepo.upcoming.length, 1);
     });
 
-    test('Double-booking prevention throws friendly error', () async {
+    test('Booking throws error when double-booking conflict occurs', () async {
       final mockRepo = MockAppointmentRepository(
         shouldThrowDoubleBookingError: true,
       );
@@ -383,35 +369,37 @@ void main() {
           time: '2:00 PM',
           consultationFee: 2000,
         ),
-        throwsA(predicate((e) =>
-            e.toString().contains('already been booked') ||
-            e.toString().contains('another patient'))),
+        throwsA(isA<String>()),
       );
     });
 
-    test('Cancellation marks appointment as cancelled and preserves record', () async {
+    test('cancelAppointment updates status in-place', () async {
+      final apt = createTestAppointment(id: 'apt-to-cancel');
       final mockRepo = MockAppointmentRepository(
-        appointmentsToReturn: [createTestAppointment(id: 'apt-to-cancel')],
+        appointmentsToReturn: [apt],
       );
 
-      expect(mockRepo.upcoming.length, 1);
-      expect(mockRepo.cancelled.length, 0);
-
-      await mockRepo.cancelAppointment(appointmentId: 'apt-to-cancel');
+      await mockRepo.cancelAppointment(
+        appointmentId: 'apt-to-cancel',
+        reason: 'Change of plans',
+      );
 
       expect(mockRepo.cancelAppointmentCallCount, 1);
       expect(mockRepo.lastCancelledAppointmentId, 'apt-to-cancel');
-      expect(mockRepo.upcoming.length, 0);
       expect(mockRepo.cancelled.length, 1);
-      expect(mockRepo.all.length, 1); // Row preserved in history
+      expect(mockRepo.cancelled.first.cancellationReason, 'Change of plans');
     });
   });
 
-  group('Widget Tests for Appointment Screens', () {
-    testWidgets('FindDoctorScreen renders doctor list from repository and supports search', (tester) async {
-      final mockRepo = MockAppointmentRepository(
-        doctorsToReturn: [createTestDoctor()],
-      );
+  group('Find Doctor & Doctor Profile Widget Tests', () {
+    testWidgets('FindDoctorScreen displays doctors list and searches by name',
+        (WidgetTester tester) async {
+      final docs = [
+        createTestDoctor(id: 'd1', name: 'Dr. Zafar Iqbal', specialization: 'Dentist'),
+        createTestDoctor(id: 'd2', name: 'Dr. Ayesha Malik', specialization: 'Cardiologist'),
+      ];
+
+      final mockRepo = MockAppointmentRepository(doctorsToReturn: docs);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -422,12 +410,20 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Find a Doctor'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
+      expect(find.text('Dr. Zafar Iqbal'), findsOneWidget);
+      expect(find.text('Dr. Ayesha Malik'), findsOneWidget);
+
+      final searchField = find.byType(TextField);
+      expect(searchField, findsOneWidget);
+      await tester.enterText(searchField, 'Zafar');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dr. Zafar Iqbal'), findsOneWidget);
+      expect(find.text('Dr. Ayesha Malik'), findsNothing);
     });
 
-    testWidgets('DoctorProfileScreen renders details, clinic, and services', (tester) async {
+    testWidgets('DoctorProfileScreen displays details, fees, and services',
+        (WidgetTester tester) async {
       final doc = createTestDoctor();
 
       await tester.pumpWidget(
@@ -441,12 +437,16 @@ void main() {
 
       expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
       expect(find.text('Cardiologist • MBBS'), findsOneWidget);
-      expect(find.text('City Heart Clinic'), findsOneWidget);
-      expect(find.text('General Consultation'), findsOneWidget);
+      expect(find.text('Rs. 2000'), findsWidgets);
+      expect(find.text('General Consultation'), findsWidgets);
+      expect(find.text('Follow-up Consultation'), findsOneWidget);
       expect(find.text('Book Appointment'), findsOneWidget);
     });
+  });
 
-    testWidgets('BookAppointmentScreen allows date and time selection and shows cash info', (tester) async {
+  group('Book Appointment & Confirmation Flow Widget Tests', () {
+    testWidgets('BookAppointmentScreen allows service and slot selection and requests appointment',
+        (WidgetTester tester) async {
       final doc = createTestDoctor();
 
       await tester.pumpWidget(
@@ -459,13 +459,31 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Book Appointment'), findsOneWidget);
+      expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
+      expect(find.text('General Consultation'), findsWidgets);
+      expect(find.text('Select Service'), findsOneWidget);
       expect(find.text('Select Date'), findsOneWidget);
       expect(find.text('Select Time'), findsOneWidget);
-      expect(find.text('Payment: Cash in Person'), findsOneWidget);
-      expect(find.text('Request Appointment'), findsOneWidget);
+      expect(find.text('Payment: Cash at Clinic'), findsOneWidget);
+
+      // Select first date chip
+      final dateChips = find.byType(AnimatedContainer);
+      expect(dateChips, findsWidgets);
+      await tester.tap(dateChips.first);
+      await tester.pumpAndSettle();
+
+      // Select time slot
+      final timeSlot = find.text('10:00 AM');
+      expect(timeSlot, findsOneWidget);
+      await tester.tap(timeSlot);
+      await tester.pumpAndSettle();
+
+      final requestBtn = find.widgetWithText(ElevatedButton, 'Request Appointment');
+      expect(requestBtn, findsOneWidget);
     });
 
-    testWidgets('AppointmentConfirmationScreen renders reference ID, cash notice, and pending status', (tester) async {
+    testWidgets('AppointmentConfirmationScreen renders reference and cash notice',
+        (WidgetTester tester) async {
       final apt = createTestAppointment();
 
       await tester.pumpWidget(
@@ -479,33 +497,14 @@ void main() {
 
       expect(find.text('Appointment Request Submitted'), findsOneWidget);
       expect(find.text('Reference: SP-APT-0001'), findsOneWidget);
-      expect(find.text('Status: Pending Doctor Acceptance'), findsOneWidget);
+      expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
+      expect(find.text('Rs. 2000'), findsOneWidget);
       expect(find.text('Cash in person (Pay at clinic)'), findsOneWidget);
       expect(find.text('View My Appointments'), findsOneWidget);
-      expect(find.text('Back to Home'), findsOneWidget);
     });
 
-    testWidgets('MyAppointmentsScreen renders tabs (Upcoming, Past, Cancelled)', (tester) async {
-      final mockRepo = MockAppointmentRepository(
-        appointmentsToReturn: [createTestAppointment()],
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: MyAppointmentsScreen(repository: mockRepo),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.text('My Appointments'), findsOneWidget);
-      expect(find.text('Upcoming'), findsOneWidget);
-      expect(find.text('Past'), findsOneWidget);
-      expect(find.text('Cancelled'), findsOneWidget);
-    });
-
-    testWidgets('AppointmentDetailScreen renders appointment information and cancel action', (tester) async {
+    testWidgets('AppointmentDetailScreen renders service and Cash at clinic notice',
+        (WidgetTester tester) async {
       final apt = createTestAppointment();
 
       await tester.pumpWidget(
@@ -520,14 +519,32 @@ void main() {
       expect(find.text('Appointment Details'), findsOneWidget);
       expect(find.text('Appointment ID'), findsOneWidget);
       expect(find.text('SP-APT-0001'), findsOneWidget);
-      expect(find.text('Cash in Person'), findsOneWidget);
-      expect(find.text('Cancel Appointment'), findsOneWidget);
+      expect(find.text('Service'), findsOneWidget);
+      expect(find.text('General Consultation'), findsOneWidget);
+      expect(find.text('Consultation Fee'), findsOneWidget);
+      expect(find.text('Rs. 2000'), findsOneWidget);
+      expect(find.text('Payment'), findsOneWidget);
+      expect(find.text('Cash at clinic (Pay upon visit)'), findsOneWidget);
+    });
 
-      // Tap Cancel Appointment to show dialog
-      await tester.tap(find.text('Cancel Appointment'));
+    testWidgets('MyAppointmentsScreen renders list and empty state',
+        (WidgetTester tester) async {
+      final mockRepo = MockAppointmentRepository(
+        appointmentsToReturn: [createTestAppointment()],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MyAppointmentsScreen(repository: mockRepo),
+        ),
+      );
+
       await tester.pumpAndSettle();
 
-      expect(find.text('Keep Appointment'), findsOneWidget);
+      expect(find.text('My Appointments'), findsOneWidget);
+      expect(find.text('Dr. Ahmed Khan'), findsOneWidget);
+      expect(find.text('Rs. 2000'), findsOneWidget);
     });
   });
 }

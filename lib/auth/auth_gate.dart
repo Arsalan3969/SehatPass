@@ -4,19 +4,36 @@ import '../app/app_shell.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../features/auth/login_screen.dart';
-import '../features/doctor/doctor_shell_screen.dart';
-import '../services/auth_service.dart';
 import '../features/auth/reset_password_screen.dart';
+import '../features/doctor/data/doctor_repository.dart';
+import '../features/doctor/doctor_shell_screen.dart';
+import '../features/doctor/onboarding/doctor_onboarding_screen.dart';
+import '../services/auth_service.dart';
 import '../shared/widgets/app_card.dart';
+
+/// Resolved routing destinations for authenticated users.
+enum AuthTarget {
+  patient,
+  doctorOnboarding,
+  doctorShell,
+}
 
 class AuthGate extends StatefulWidget {
   final Stream<AuthState>? authStateStream;
   final bool? initialRecoveryMode;
+  final AuthService? authService;
+  final DoctorRepository? doctorRepository;
+  final Future<String?> Function(String userId)? roleResolver;
+  final Future<bool> Function(String doctorId)? doctorPublishedResolver;
 
   const AuthGate({
     super.key,
     this.authStateStream,
     this.initialRecoveryMode,
+    this.authService,
+    this.doctorRepository,
+    this.roleResolver,
+    this.doctorPublishedResolver,
   });
 
   @override
@@ -24,7 +41,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  Key _roleFutureKey = UniqueKey();
+  Key _resolutionFutureKey = UniqueKey();
   bool _isRecoveryMode = false;
 
   @override
@@ -33,10 +50,46 @@ class _AuthGateState extends State<AuthGate> {
     _isRecoveryMode = widget.initialRecoveryMode ?? false;
   }
 
-  void _retryRoleFetch() {
+  void _retryResolution() {
     setState(() {
-      _roleFutureKey = UniqueKey();
+      _resolutionFutureKey = UniqueKey();
     });
+  }
+
+  Future<AuthTarget> _resolveDestination(String userId) async {
+    // 1. Authoritatively resolve user role from public.profiles
+    final String? role;
+    if (widget.roleResolver != null) {
+      role = await widget.roleResolver!(userId);
+    } else {
+      final auth = widget.authService ?? AuthService.instance;
+      role = await auth.getUserProfileRole(userId);
+    }
+
+    if (role == null) {
+      throw 'Unable to retrieve user profile from the database.';
+    }
+
+    if (role == 'patient') {
+      return AuthTarget.patient;
+    } else if (role == 'doctor') {
+      // 2. Query public.doctor_profiles via DoctorRepository
+      final bool isPublished;
+      if (widget.doctorPublishedResolver != null) {
+        isPublished = await widget.doctorPublishedResolver!(userId);
+      } else {
+        final docRepo = widget.doctorRepository ?? DoctorRepository.instance;
+        isPublished = await docRepo.isDoctorProfilePublished(doctorId: userId);
+      }
+
+      if (isPublished) {
+        return AuthTarget.doctorShell;
+      } else {
+        return AuthTarget.doctorOnboarding;
+      }
+    } else {
+      throw 'Invalid account role configured. Please contact support.';
+    }
   }
 
   @override
@@ -77,31 +130,32 @@ class _AuthGateState extends State<AuthGate> {
 
         final userId = session.user.id;
 
-        return FutureBuilder<String?>(
-          key: ValueKey('${userId}_$_roleFutureKey'),
-          future: AuthService.instance.getUserProfileRole(userId),
-          builder: (context, roleSnapshot) {
-            if (roleSnapshot.connectionState == ConnectionState.waiting) {
+        return FutureBuilder<AuthTarget>(
+          key: ValueKey('${userId}_$_resolutionFutureKey'),
+          future: _resolveDestination(userId),
+          builder: (context, targetSnapshot) {
+            if (targetSnapshot.connectionState == ConnectionState.waiting) {
               return _buildLoadingScreen();
             }
 
-            if (roleSnapshot.hasError || !roleSnapshot.hasData) {
+            if (targetSnapshot.hasError || !targetSnapshot.hasData) {
+              final errorMsg = targetSnapshot.hasError
+                  ? targetSnapshot.error.toString().replaceFirst('Exception: ', '')
+                  : 'Unable to retrieve user profile from the database.';
               return _buildRoleErrorScreen(
-                errorMessage: 'Unable to retrieve user profile from the database.',
+                errorMessage: errorMsg,
               );
             }
 
-            final role = roleSnapshot.data;
+            final target = targetSnapshot.data!;
 
-            if (role == 'patient') {
-              return const AppShell();
-            } else if (role == 'doctor') {
-              return const DoctorShellScreen();
-            } else {
-              return _buildRoleErrorScreen(
-                errorMessage:
-                    'Invalid account role configured. Please contact support.',
-              );
+            switch (target) {
+              case AuthTarget.patient:
+                return const AppShell();
+              case AuthTarget.doctorOnboarding:
+                return const DoctorOnboardingScreen();
+              case AuthTarget.doctorShell:
+                return const DoctorShellScreen();
             }
           },
         );
@@ -203,7 +257,7 @@ class _AuthGateState extends State<AuthGate> {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: _retryRoleFetch,
+                        onPressed: _retryResolution,
                         icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: const Text(
                           'Retry Connection',

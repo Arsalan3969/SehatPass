@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_card.dart';
-import 'data/appointment_repository.dart';
 import 'models/appointment_model.dart';
+import 'data/appointment_repository.dart';
+import '../doctor/models/doctor_consultation_note_model.dart';
 
 class AppointmentDetailScreen extends StatefulWidget {
   final Appointment appointment;
-  const AppointmentDetailScreen({super.key, required this.appointment});
+  final DoctorConsultationNoteModel? initialConsultationNote;
+
+  const AppointmentDetailScreen({
+    super.key,
+    required this.appointment,
+    this.initialConsultationNote,
+  });
 
   @override
   State<AppointmentDetailScreen> createState() =>
@@ -16,11 +24,46 @@ class AppointmentDetailScreen extends StatefulWidget {
 
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   late AppointmentStatus _currentStatus;
+  DoctorConsultationNoteModel? _consultationNote;
+  bool _isLoadingConsultation = false;
 
   @override
   void initState() {
     super.initState();
     _currentStatus = widget.appointment.status;
+    _consultationNote = widget.initialConsultationNote;
+
+    if (_consultationNote == null &&
+        (_currentStatus == AppointmentStatus.upcoming ||
+            _currentStatus == AppointmentStatus.past)) {
+      _loadConsultationNote();
+    }
+  }
+
+  Future<void> _loadConsultationNote() async {
+    setState(() => _isLoadingConsultation = true);
+    try {
+      final client = Supabase.instance.client;
+      final response = await client
+          .from('doctor_consultation_notes')
+          .select()
+          .eq('appointment_id', widget.appointment.id)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          if (response != null) {
+            _consultationNote = DoctorConsultationNoteModel.fromMap(
+                Map<String, dynamic>.from(response as Map));
+          }
+          _isLoadingConsultation = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingConsultation = false);
+      }
+    }
   }
 
   bool _isCancelling = false;
@@ -245,6 +288,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           _detailRow(Icons.confirmation_number_outlined,
                               'Appointment ID', apt.referenceNo),
                           const Divider(height: 1, color: AppColors.divider),
+                          _detailRow(Icons.medical_services_outlined,
+                              'Service', apt.serviceName),
+                          const Divider(height: 1, color: AppColors.divider),
                           _detailRow(Icons.calendar_today_outlined, 'Date',
                               apt.formattedDate),
                           const Divider(height: 1, color: AppColors.divider),
@@ -275,26 +321,204 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                             Icons.payments_outlined,
                             'Consultation Fee',
                             'Rs. ${apt.consultationFee}',
+                            valueColor: AppColors.primary,
                           ),
                           const Divider(height: 1, color: AppColors.divider),
                           _detailRow(
                             Icons.point_of_sale_rounded,
-                            'Payment Method',
-                            'Cash in Person',
-                          ),
-                          const Divider(height: 1, color: AppColors.divider),
-                          _detailRow(
-                            Icons.info_outline_rounded,
-                            'Payment Status',
-                            apt.paymentStatus == PaymentStatus.paid
-                                ? 'Paid'
-                                : 'Pay in cash at clinic',
-                            valueColor: AppColors.primary,
+                            'Payment',
+                            'Cash at clinic (Pay upon visit)',
+                            valueColor: AppColors.textPrimary,
                             isLast: true,
                           ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Doctor Consultation & Prescriptions (Phase 4C) ────
+                    if (_consultationNote != null || _isLoadingConsultation) ...[
+                      Text('Doctor Consultation & Prescription',
+                          style: AppTextStyles.headingSmall),
+                      const SizedBox(height: 10),
+                      if (_isLoadingConsultation) ...[
+                        Container(
+                          height: 70,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const CircularProgressIndicator(
+                              color: AppColors.primary),
+                        ),
+                      ] else if (_consultationNote != null) ...[
+                        AppCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_consultationNote!.diagnosis != null &&
+                                  _consultationNote!.diagnosis!.isNotEmpty) ...[
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primarySurface,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.medical_services_outlined,
+                                          size: 16, color: AppColors.primary),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Diagnosis',
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                              color: AppColors.textTertiary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            _consultationNote!.diagnosis!,
+                                            style: AppTextStyles.labelLarge
+                                                .copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Divider(
+                                    height: 18, color: AppColors.divider),
+                              ],
+                              if (_consultationNote!.notes != null &&
+                                  _consultationNote!.notes!.isNotEmpty) ...[
+                                Text(
+                                  'Doctor Notes & Advice',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textTertiary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _consultationNote!.notes!,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const Divider(
+                                    height: 18, color: AppColors.divider),
+                              ],
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Prescription',
+                                    style: AppTextStyles.labelMedium.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${_consultationNote!.prescriptions.length} Meds',
+                                      style: const TextStyle(
+                                        color: Color(0xFF2563EB),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_consultationNote!.prescriptions.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                ..._consultationNote!.prescriptions.map((p) =>
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.background,
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                        border: Border.all(
+                                            color: AppColors.border),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.medication_rounded,
+                                              size: 16,
+                                              color: AppColors.primary),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  p.medicineName,
+                                                  style: AppTextStyles
+                                                      .labelLarge
+                                                      .copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${p.dosage} • ${p.frequency} • ${p.duration}',
+                                                  style: AppTextStyles.caption
+                                                      .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                                if (p.instruction.isNotEmpty) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Instruction: ${p.instruction}',
+                                                    style: AppTextStyles
+                                                        .caption
+                                                        .copyWith(
+                                                      color: AppColors
+                                                          .textTertiary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                    ],
 
                     const SizedBox(height: 24),
                   ],

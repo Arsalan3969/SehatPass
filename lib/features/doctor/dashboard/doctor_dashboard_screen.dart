@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/doctor_repository.dart';
 import '../models/doctor_onboarding_data.dart';
 import '../models/doctor_appointment_model.dart';
 import '../models/doctor_patient_model.dart';
@@ -10,19 +11,21 @@ import '../patients/doctor_patient_detail_screen.dart';
 class DoctorDashboardScreen extends StatefulWidget {
   final DoctorOnboardingData data;
   final List<DoctorAppointmentModel> appointments;
-  final Function(DoctorAppointmentModel appointment)? onAcceptAppointment;
-  final Function(DoctorAppointmentModel appointment)? onDeclineAppointment;
+  final List<DoctorPatientModel> patients;
+  final DoctorRepository? repository;
+  final dynamic Function(DoctorAppointmentModel appointment)? onAcceptAppointment;
+  final dynamic Function(DoctorAppointmentModel appointment)? onDeclineAppointment;
   final Function(int tabIndex)? onNavigateToTab;
-  final VoidCallback? onSwitchToPatientView;
 
   const DoctorDashboardScreen({
     super.key,
     required this.data,
     required this.appointments,
+    this.patients = const [],
+    this.repository,
     this.onAcceptAppointment,
     this.onDeclineAppointment,
     this.onNavigateToTab,
-    this.onSwitchToPatientView,
   });
 
   @override
@@ -30,8 +33,7 @@ class DoctorDashboardScreen extends StatefulWidget {
 }
 
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
-  final List<DoctorPatientModel> _recentPatients =
-      DoctorPatientModel.dummyPatients.take(3).toList();
+  final Set<String> _updatingAppointmentIds = {};
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -48,22 +50,47 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       .where((a) => a.status == DoctorAppointmentStatus.confirmed)
       .toList();
 
-  void _handleAccept(DoctorAppointmentModel appointment) {
-    setState(() {
-      appointment.status = DoctorAppointmentStatus.confirmed;
-    });
-    widget.onAcceptAppointment?.call(appointment);
+  Future<void> _handleAccept(DoctorAppointmentModel appointment) async {
+    if (_updatingAppointmentIds.contains(appointment.id)) return;
+    setState(() => _updatingAppointmentIds.add(appointment.id));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Appointment for ${appointment.patientName} Accepted & Confirmed.',
-        ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    try {
+      if (widget.onAcceptAppointment != null) {
+        await widget.onAcceptAppointment!(appointment);
+      } else {
+        appointment.status = DoctorAppointmentStatus.confirmed;
+      }
+
+      if (mounted) {
+        setState(() {
+          appointment.status = DoctorAppointmentStatus.confirmed;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment for ${appointment.patientName} Accepted & Confirmed.',
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to accept appointment: $e'),
+            backgroundColor: AppColors.emergency,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingAppointmentIds.remove(appointment.id));
+      }
+    }
   }
 
   void _showDeclineConfirmation(DoctorAppointmentModel appointment) {
@@ -103,23 +130,49 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             child: const Text('Keep'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {
-                appointment.status = DoctorAppointmentStatus.cancelled;
-              });
-              widget.onDeclineAppointment?.call(appointment);
+              if (_updatingAppointmentIds.contains(appointment.id)) return;
+              setState(() => _updatingAppointmentIds.add(appointment.id));
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Appointment for ${appointment.patientName} was declined.',
-                  ),
-                  backgroundColor: AppColors.textPrimary,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              try {
+                if (widget.onDeclineAppointment != null) {
+                  await widget.onDeclineAppointment!(appointment);
+                } else {
+                  appointment.status = DoctorAppointmentStatus.cancelled;
+                }
+
+                if (mounted) {
+                  setState(() {
+                    appointment.status = DoctorAppointmentStatus.cancelled;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Appointment for ${appointment.patientName} was declined.',
+                      ),
+                      backgroundColor: AppColors.textPrimary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to decline appointment: $e'),
+                      backgroundColor: AppColors.emergency,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  setState(
+                      () => _updatingAppointmentIds.remove(appointment.id));
+                }
+              }
             },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.emergency,
@@ -140,12 +193,20 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       MaterialPageRoute(
         builder: (_) => DoctorAppointmentDetailsScreen(
           appointment: appointment,
-          onAccept: (apt) => _handleAccept(apt),
-          onDecline: (apt) {
-            setState(() {
+          onAccept: (apt) async {
+            await _handleAccept(apt);
+          },
+          onDecline: (apt) async {
+            if (widget.onDeclineAppointment != null) {
+              await widget.onDeclineAppointment!(apt);
+            } else {
               apt.status = DoctorAppointmentStatus.cancelled;
-            });
-            widget.onDeclineAppointment?.call(apt);
+            }
+            if (mounted) {
+              setState(() {
+                apt.status = DoctorAppointmentStatus.cancelled;
+              });
+            }
           },
         ),
       ),
@@ -155,6 +216,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   void _showNotificationDialog() {
+    final pending = _pendingRequests;
+    final clinicName = widget.data.clinic.name;
+
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -182,17 +246,30 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildNotificationItem(
-              title: 'New Appointment Request',
-              body: 'Usman Ali requested General Consultation today.',
-              time: '10m ago',
-            ),
-            const Divider(height: 16),
-            _buildNotificationItem(
-              title: 'Clinic Published',
-              body: 'City Heart Clinic is now live for patients.',
-              time: '1h ago',
-            ),
+            if (pending.isNotEmpty) ...[
+              _buildNotificationItem(
+                title: 'New Appointment Request',
+                body: '${pending.first.patientName} requested ${pending.first.serviceName}.',
+                time: '${pending.first.date} • ${pending.first.time}',
+              ),
+              if (clinicName.isNotEmpty) const Divider(height: 16),
+            ],
+            if (clinicName.isNotEmpty)
+              _buildNotificationItem(
+                title: 'Clinic Published',
+                body: '$clinicName is active and ready for appointments.',
+                time: 'Active',
+              ),
+            if (pending.isEmpty && clinicName.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No new notifications.',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
           ],
         ),
         actions: [
@@ -255,11 +332,21 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final doctorName = widget.data.profile.fullName.isNotEmpty
-        ? widget.data.profile.fullName
-        : 'Doctor';
+    final rawName = widget.data.profile.fullName.trim();
+    final String doctorName;
+    if (rawName.isEmpty) {
+      doctorName = 'Doctor';
+    } else if (rawName.toLowerCase().startsWith('dr.') ||
+        rawName.toLowerCase().startsWith('dr ')) {
+      doctorName = rawName;
+    } else {
+      doctorName = 'Dr. $rawName';
+    }
+
+    final isPublished = widget.data.profile.isPublished || widget.data.isPublished;
     final pendingList = _pendingRequests;
     final scheduleList = _todaySchedule;
+    final recentPatients = widget.patients.take(3).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -299,20 +386,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 ),
             ],
           ),
-          // Patient View temporary switch
-          if (widget.onSwitchToPatientView != null)
-            TextButton.icon(
-              onPressed: widget.onSwitchToPatientView,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-              label: const Text('Patient View'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -360,9 +433,15 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
+                        color: isPublished
+                            ? const Color(0xFFECFDF5)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                        border: Border.all(
+                          color: isPublished
+                              ? const Color(0xFFA7F3D0)
+                              : const Color(0xFFCBD5E1),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -370,16 +449,20 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF059669),
+                            decoration: BoxDecoration(
+                              color: isPublished
+                                  ? const Color(0xFF059669)
+                                  : const Color(0xFF64748B),
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Clinic Published',
+                          Text(
+                            isPublished ? 'Clinic Published' : 'Draft Clinic',
                             style: TextStyle(
-                              color: Color(0xFF065F46),
+                              color: isPublished
+                                  ? const Color(0xFF065F46)
+                                  : const Color(0xFF334155),
                               fontWeight: FontWeight.w700,
                               fontSize: 11,
                             ),
@@ -423,7 +506,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                   Expanded(
                     child: _buildMetricCard(
                       title: 'Total Patients',
-                      value: '128',
+                      value: '${widget.patients.length}',
                       icon: Icons.people_alt_outlined,
                       iconColor: const Color(0xFF2563EB),
                       iconBgColor: const Color(0xFFEFF6FF),
@@ -432,9 +515,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildMetricCard(
-                      title: "Today's Earnings",
-                      value: 'Rs. 8,500',
-                      icon: Icons.payments_outlined,
+                      title: 'Total Appointments',
+                      value: '${widget.appointments.length}',
+                      icon: Icons.event_available_rounded,
                       iconColor: const Color(0xFF059669),
                       iconBgColor: const Color(0xFFECFDF5),
                     ),
@@ -667,83 +750,98 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _recentPatients.length,
-                  separatorBuilder: (_, index) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final patient = _recentPatients[index];
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                DoctorPatientDetailScreen(patient: patient),
+                child: recentPatients.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            'No patients yet',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.primarySurface,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  patient.name.isNotEmpty
-                                      ? patient.name[0]
-                                      : 'P',
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: recentPatients.length,
+                        separatorBuilder: (_, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final patient = recentPatients[index];
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DoctorPatientDetailScreen(
+                                    patient: patient,
+                                    patientId: patient.id,
+                                    repository: widget.repository,
                                   ),
                                 ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    patient.name,
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primarySurface,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        patient.name.isNotEmpty
+                                            ? patient.name[0]
+                                            : 'P',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${patient.age} yrs • Last visit ${patient.lastVisit}',
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.textTertiary,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          patient.name,
+                                          style: AppTextStyles.labelLarge.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${patient.age > 0 ? "${patient.age} yrs • " : ""}Last visit ${patient.lastVisit}',
+                                          style: AppTextStyles.caption.copyWith(
+                                            color: AppColors.textTertiary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: AppColors.textTertiary,
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              size: 20,
-                              color: AppColors.textTertiary,
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
 
               const SizedBox(height: 20),

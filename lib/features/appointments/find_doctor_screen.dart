@@ -26,14 +26,6 @@ class _FindDoctorScreenState extends State<FindDoctorScreen> {
   String? _errorMessage;
   List<Doctor> _doctors = [];
 
-  static const List<String> _defaultSpecialties = [
-    'All',
-    'General Physician',
-    'Cardiologist',
-    'Dermatologist',
-    'Dentist',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -65,9 +57,10 @@ class _FindDoctorScreenState extends State<FindDoctorScreen> {
   }
 
   List<String> get _specialties {
-    final Set<String> specs = {'All', ..._defaultSpecialties};
+    final Set<String> specs = {'All'};
     for (final doc in _doctors) {
-      if (doc.specialization.isNotEmpty) {
+      if (doc.specialization.isNotEmpty &&
+          doc.specialization != 'Specialization not provided') {
         specs.add(doc.specialization);
       }
     }
@@ -447,21 +440,6 @@ class _DoctorCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              // Rating
-              Row(
-                children: [
-                  const Icon(Icons.star_rounded,
-                      size: 14, color: Color(0xFFF59E0B)),
-                  const SizedBox(width: 3),
-                  Text(
-                    doctor.rating.toStringAsFixed(1),
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

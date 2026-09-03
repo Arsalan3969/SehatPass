@@ -9,12 +9,17 @@ import 'package:sehatpass/features/doctor/patients/doctor_patients_screen.dart';
 import 'package:sehatpass/features/doctor/patients/doctor_patient_detail_screen.dart';
 import 'package:sehatpass/features/doctor/clinic/doctor_clinic_screen.dart';
 import 'package:sehatpass/features/doctor/profile/doctor_profile_screen.dart';
+import 'package:sehatpass/features/doctor/models/doctor_appointment_model.dart';
+import 'package:sehatpass/features/doctor/models/doctor_patient_model.dart';
 
 void main() {
   Widget createDoctorApp() {
     return MaterialApp(
       theme: AppTheme.light,
-      home: const DoctorShellScreen(),
+      home: DoctorShellScreen(
+        initialAppointments: DoctorAppointmentModel.dummySchedule,
+        initialPatients: DoctorPatientModel.dummyPatients,
+      ),
     );
   }
 
@@ -48,7 +53,7 @@ void main() {
     expect(find.text("Today's Appointments"), findsOneWidget);
     expect(find.text('Pending Requests'), findsWidgets);
     expect(find.text('Total Patients'), findsOneWidget);
-    expect(find.text("Today's Earnings"), findsOneWidget);
+    expect(find.text('Total Appointments'), findsOneWidget);
   });
 
   testWidgets('Switching bottom tabs navigates between Doctor screens',
@@ -217,14 +222,15 @@ void main() {
     final viewPatientBtn =
         find.widgetWithText(OutlinedButton, 'View Patient Profile');
     expect(viewPatientBtn, findsOneWidget);
+    await tester.ensureVisible(viewPatientBtn);
     await tester.tap(viewPatientBtn);
     await tester.pumpAndSettle();
 
     // Patient Details Screen is opened
     expect(find.byType(DoctorPatientDetailScreen), findsOneWidget);
-    expect(find.text('Sehat AI Summary'), findsOneWidget);
-    expect(find.text('Medical History'), findsOneWidget);
-    expect(find.text('Current Medicines (2)'), findsOneWidget);
+    expect(find.text('Ali Khan'), findsWidgets);
+    expect(find.text('Clinical Summary'), findsOneWidget);
+    expect(find.text('Active Medications'), findsOneWidget);
   });
 
   testWidgets('No overflow occurs on compact 360x640 screen size across all tabs',

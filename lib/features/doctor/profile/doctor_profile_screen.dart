@@ -2,17 +2,44 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../services/auth_service.dart';
+import '../data/doctor_repository.dart';
 import '../models/doctor_onboarding_data.dart';
+import '../models/doctor_profile_model.dart';
 
-class DoctorProfileScreen extends StatelessWidget {
+class DoctorProfileScreen extends StatefulWidget {
   final DoctorOnboardingData data;
-  final VoidCallback? onSwitchToPatientView;
+  final DoctorRepository? repository;
+  final VoidCallback? onProfileUpdated;
 
   const DoctorProfileScreen({
     super.key,
     required this.data,
-    this.onSwitchToPatientView,
+    this.repository,
+    this.onProfileUpdated,
   });
+
+  @override
+  State<DoctorProfileScreen> createState() => _DoctorProfileScreenState();
+}
+
+class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
+  late final DoctorRepository _repository;
+  late DoctorProfileModel _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? DoctorRepository.instance;
+    _profile = widget.data.profile;
+  }
+
+  @override
+  void didUpdateWidget(covariant DoctorProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.data.profile != oldWidget.data.profile) {
+      _profile = widget.data.profile;
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog<void>(
@@ -53,7 +80,19 @@ class DoctorProfileScreen extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await AuthService.instance.signOut();
+              try {
+                await AuthService.instance.signOut();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to log out: $e'),
+                      backgroundColor: AppColors.emergency,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
             },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.emergency,
@@ -87,9 +126,59 @@ class DoctorProfileScreen extends StatelessWidget {
     );
   }
 
+  void _openEditProfile() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _EditProfileBottomSheet(
+        initialProfile: _profile,
+        repository: _repository,
+        onSave: (updated) {
+          setState(() {
+            _profile = updated;
+            widget.data.profile = updated;
+          });
+          widget.onProfileUpdated?.call();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final profile = data.profile;
+    final profile = _profile;
+    final rawName = profile.fullName.trim();
+    final String displayName;
+    if (rawName.isEmpty) {
+      displayName = 'Doctor';
+    } else if (rawName.toLowerCase().startsWith('dr.') ||
+        rawName.toLowerCase().startsWith('dr ')) {
+      displayName = rawName;
+    } else {
+      displayName = 'Dr. $rawName';
+    }
+
+    final specializationText = profile.specialization.trim().isNotEmpty
+        ? profile.specialization.trim()
+        : 'Specialization not provided';
+
+    final qualifications = profile.qualifications.trim();
+    final experience = profile.experienceYears.trim();
+    final String metaText;
+    if (qualifications.isNotEmpty && experience.isNotEmpty) {
+      metaText = '$qualifications • $experience Experience';
+    } else if (qualifications.isNotEmpty) {
+      metaText = qualifications;
+    } else if (experience.isNotEmpty) {
+      metaText = '$experience Experience';
+    } else {
+      metaText = 'Qualifications not provided';
+    }
+
+    final bioText = profile.bio.trim().isNotEmpty
+        ? profile.bio.trim()
+        : 'No biography provided yet.';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -101,20 +190,18 @@ class DoctorProfileScreen extends StatelessWidget {
           style: AppTextStyles.headingMedium,
         ),
         actions: [
-          if (onSwitchToPatientView != null)
-            TextButton.icon(
-              onPressed: onSwitchToPatientView,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-              label: const Text('Patient View'),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              onPressed: _openEditProfile,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                textStyle: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-          const SizedBox(width: 8),
+          ),
         ],
       ),
       body: SafeArea(
@@ -161,14 +248,14 @@ class DoctorProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      profile.fullName,
+                      displayName,
                       style: AppTextStyles.headingMedium.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      profile.specialization,
+                      specializationText,
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -176,44 +263,23 @@ class DoctorProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${profile.qualifications} • ${profile.experienceYears} Experience',
+                      metaText,
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.textTertiary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            color: Color(0xFFD97706),
-                            size: 16,
-                          ),
-                          SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '4.8 Rating (Verified Doctor)',
-                              style: TextStyle(
-                                color: Color(0xFF92400E),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _openEditProfile,
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: const Text('Edit Profile'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       ),
                     ),
                   ],
@@ -237,7 +303,7 @@ class DoctorProfileScreen extends StatelessWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Text(
-                  profile.bio,
+                  bioText,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                     height: 1.5,
@@ -281,26 +347,6 @@ class DoctorProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1),
-                    _buildSettingRow(
-                      icon: Icons.security_rounded,
-                      title: 'License & Verification',
-                      subtitle: 'PMC / PMDC verification badge active',
-                      onTap: () => _showNotice(
-                        context,
-                        'PMDC verification will be linked with doctor registration.',
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    if (onSwitchToPatientView != null) ...[
-                      _buildSettingRow(
-                        icon: Icons.swap_horiz_rounded,
-                        title: 'Switch to Patient View',
-                        subtitle: 'Return to the patient home interface',
-                        iconColor: AppColors.primary,
-                        onTap: onSwitchToPatientView!,
-                      ),
-                      const Divider(height: 1),
-                    ],
                     _buildSettingRow(
                       icon: Icons.logout_rounded,
                       title: 'Log Out',
@@ -382,6 +428,302 @@ class DoctorProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EditProfileBottomSheet extends StatefulWidget {
+  final DoctorProfileModel initialProfile;
+  final DoctorRepository repository;
+  final ValueChanged<DoctorProfileModel> onSave;
+
+  const _EditProfileBottomSheet({
+    required this.initialProfile,
+    required this.repository,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+}
+
+class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _specializationController;
+  late final TextEditingController _qualificationsController;
+  late final TextEditingController _experienceController;
+  late final TextEditingController _bioController;
+
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fullNameController = TextEditingController(text: widget.initialProfile.fullName);
+    _specializationController = TextEditingController(text: widget.initialProfile.specialization);
+    _qualificationsController = TextEditingController(text: widget.initialProfile.qualifications);
+    _experienceController = TextEditingController(text: widget.initialProfile.experienceYears);
+    _bioController = TextEditingController(text: widget.initialProfile.bio);
+  }
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _specializationController.dispose();
+    _qualificationsController.dispose();
+    _experienceController.dispose();
+    _bioController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+
+    final updatedProfile = widget.initialProfile.copyWith(
+      fullName: _fullNameController.text.trim(),
+      specialization: _specializationController.text.trim(),
+      qualifications: _qualificationsController.text.trim(),
+      experienceYears: _experienceController.text.trim(),
+      bio: _bioController.text.trim(),
+    );
+
+    final doctorId = widget.repository.currentUserId;
+    if (doctorId != null && doctorId.isNotEmpty) {
+      try {
+        final persisted = await widget.repository.saveDoctorProfile(
+          doctorId: doctorId,
+          profile: updatedProfile,
+        );
+
+        if (!mounted) return;
+        widget.onSave(persisted);
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Doctor profile updated successfully.'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.emergency,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      // Local/mock save for testing
+      widget.onSave(updatedProfile);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Doctor profile updated successfully.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Edit Doctor Profile',
+                    style: AppTextStyles.headingSmall,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 22, color: AppColors.textTertiary),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+
+              // Full Name
+              const Text('Full Name', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _fullNameController,
+                decoration: _inputDecoration(
+                  hint: 'Dr. Full Name',
+                  icon: Icons.person_outline_rounded,
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please enter your full name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Specialization
+              const Text('Specialization', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _specializationController,
+                decoration: _inputDecoration(
+                  hint: 'e.g. Cardiologist, General Physician',
+                  icon: Icons.medical_services_outlined,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Qualifications
+              const Text('Qualifications', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _qualificationsController,
+                decoration: _inputDecoration(
+                  hint: 'e.g. MBBS, FCPS',
+                  icon: Icons.school_outlined,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Experience
+              const Text('Experience', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _experienceController,
+                decoration: _inputDecoration(
+                  hint: 'e.g. 5 years',
+                  icon: Icons.work_outline_rounded,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Bio
+              const Text('Biography / About', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _bioController,
+                minLines: 3,
+                maxLines: 5,
+                decoration: _inputDecoration(
+                  hint: 'Write a brief description about your medical background and care philosophy...',
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Actions
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.border),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _handleSave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    IconData? icon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
+      prefixIcon: icon != null ? Icon(icon, color: AppColors.textTertiary, size: 20) : null,
+      filled: true,
+      fillColor: AppColors.surfaceSecondary,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 }

@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/doctor_repository.dart';
 import '../models/doctor_appointment_model.dart';
 import '../models/doctor_patient_model.dart';
+import '../models/doctor_consultation_note_model.dart';
 import '../patients/doctor_patient_detail_screen.dart';
+import 'widgets/write_consultation_note_sheet.dart';
 
 class DoctorAppointmentDetailsScreen extends StatefulWidget {
   final DoctorAppointmentModel appointment;
-  final Function(DoctorAppointmentModel appointment)? onAccept;
-  final Function(DoctorAppointmentModel appointment)? onDecline;
+  final DoctorRepository? repository;
+  final DoctorConsultationNoteModel? initialNote;
+  final dynamic Function(DoctorAppointmentModel appointment)? onAccept;
+  final dynamic Function(DoctorAppointmentModel appointment)? onDecline;
 
   const DoctorAppointmentDetailsScreen({
     super.key,
     required this.appointment,
+    this.repository,
+    this.initialNote,
     this.onAccept,
     this.onDecline,
   });
@@ -24,29 +31,106 @@ class DoctorAppointmentDetailsScreen extends StatefulWidget {
 
 class _DoctorAppointmentDetailsScreenState
     extends State<DoctorAppointmentDetailsScreen> {
+  late final DoctorRepository _repository;
   late DoctorAppointmentModel _appointment;
+  DoctorConsultationNoteModel? _consultationNote;
+  bool _isLoadingNote = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? DoctorRepository.instance;
     _appointment = widget.appointment;
+    _consultationNote = widget.initialNote;
+
+    if (_consultationNote == null &&
+        (_appointment.status == DoctorAppointmentStatus.confirmed ||
+            _appointment.status == DoctorAppointmentStatus.completed)) {
+      _loadConsultationNote();
+    }
   }
 
-  void _handleAccept() {
-    setState(() {
-      _appointment.status = DoctorAppointmentStatus.confirmed;
-    });
-    widget.onAccept?.call(_appointment);
+  Future<void> _loadConsultationNote() async {
+    setState(() => _isLoadingNote = true);
+    try {
+      final note =
+          await _repository.getConsultationNoteForAppointment(_appointment.id);
+      if (mounted) {
+        setState(() {
+          _consultationNote = note;
+          _isLoadingNote = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingNote = false);
+      }
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Appointment for ${_appointment.patientName} accepted & confirmed.',
-        ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
+  void _openConsultationNoteSheet() {
+    showModalBottomSheet<DoctorConsultationNoteModel?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => WriteConsultationNoteSheet(
+        appointment: _appointment,
+        existingNote: _consultationNote,
+        repository: _repository,
+        onSaveSuccess: (savedNote, isCompleted) {
+          setState(() {
+            _consultationNote = savedNote;
+            if (isCompleted) {
+              _appointment.status = DoctorAppointmentStatus.completed;
+            }
+          });
+        },
       ),
-    );
+    ).then((saved) {
+      if (saved != null && mounted) {
+        setState(() => _consultationNote = saved);
+      }
+    });
+  }
+
+  Future<void> _handleAccept() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      if (widget.onAccept != null) {
+        await widget.onAccept!(_appointment);
+      }
+      if (mounted) {
+        setState(() {
+          _appointment.status = DoctorAppointmentStatus.confirmed;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment for ${_appointment.patientName} accepted & confirmed.',
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to accept appointment: $e'),
+            backgroundColor: AppColors.emergency,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
   }
 
   void _showDeclineConfirmation() {
@@ -86,22 +170,44 @@ class _DoctorAppointmentDetailsScreenState
             child: const Text('Keep'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {
-                _appointment.status = DoctorAppointmentStatus.cancelled;
-              });
-              widget.onDecline?.call(_appointment);
+              if (_isProcessing) return;
+              setState(() => _isProcessing = true);
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Appointment for ${_appointment.patientName} was declined.',
-                  ),
-                  backgroundColor: AppColors.textPrimary,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              try {
+                if (widget.onDecline != null) {
+                  await widget.onDecline!(_appointment);
+                }
+                if (mounted) {
+                  setState(() {
+                    _appointment.status = DoctorAppointmentStatus.cancelled;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Appointment for ${_appointment.patientName} was declined.',
+                      ),
+                      backgroundColor: AppColors.textPrimary,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to decline appointment: $e'),
+                      backgroundColor: AppColors.emergency,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  setState(() => _isProcessing = false);
+                }
+              }
             },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.emergency,
@@ -117,11 +223,37 @@ class _DoctorAppointmentDetailsScreenState
   }
 
   void _openPatientProfile() {
-    final patient = DoctorPatientModel.getPatientByName(_appointment.patientName);
+    final patientId = _appointment.patientId;
+    if (patientId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Patient identifier is unavailable for this appointment.'),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final initialModel = DoctorPatientModel(
+      id: patientId,
+      name: _appointment.patientName,
+      age: _appointment.patientAge ?? 0,
+      gender: _appointment.patientGender ?? 'Not specified',
+      phone: _appointment.patientPhone ?? 'Not provided',
+      bloodGroup: 'Not specified',
+      lastVisit: _appointment.date,
+      totalVisits: 1,
+      primaryCondition: _appointment.serviceName,
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => DoctorPatientDetailScreen(patient: patient),
+        builder: (_) => DoctorPatientDetailScreen(
+          patient: initialModel,
+          patientId: patientId,
+        ),
       ),
     );
   }
@@ -149,13 +281,17 @@ class _DoctorAppointmentDetailsScreenState
         break;
     }
 
+    final hasDemographics =
+        _appointment.patientAge != null && _appointment.patientGender != null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon:
+              const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -217,12 +353,16 @@ class _DoctorAppointmentDetailsScreenState
                               Text(
                                 _appointment.patientName,
                                 style: AppTextStyles.headingMedium.copyWith(
-                                  fontWeight: FontWeight.w800,
+                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${_appointment.patientAge} yrs • ${_appointment.patientGender}',
+                                hasDemographics
+                                    ? '${_appointment.patientAge} yrs • ${_appointment.patientGender}'
+                                    : (_appointment.referenceNo.isNotEmpty
+                                        ? 'Ref: ${_appointment.referenceNo}'
+                                        : 'Patient'),
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
@@ -274,6 +414,13 @@ class _DoctorAppointmentDetailsScreenState
                 child: Column(
                   children: [
                     _buildDetailRow(
+                      icon: Icons.tag_rounded,
+                      label: 'Reference No',
+                      value: _appointment.referenceNo,
+                      isBoldValue: true,
+                    ),
+                    const Divider(height: 20),
+                    _buildDetailRow(
                       icon: Icons.person_outline_rounded,
                       label: 'Patient',
                       value: _appointment.patientName,
@@ -281,7 +428,7 @@ class _DoctorAppointmentDetailsScreenState
                     const Divider(height: 20),
                     _buildDetailRow(
                       icon: Icons.medical_services_outlined,
-                      label: 'Appointment',
+                      label: 'Service',
                       value: _appointment.serviceName,
                     ),
                     const Divider(height: 20),
@@ -312,15 +459,230 @@ class _DoctorAppointmentDetailsScreenState
                     ),
                     const Divider(height: 20),
                     _buildDetailRow(
+                      icon: Icons.point_of_sale_rounded,
+                      label: 'Payment',
+                      value: 'Cash at clinic',
+                      valueColor: AppColors.textPrimary,
+                    ),
+                    const Divider(height: 20),
+                    _buildDetailRow(
                       icon: Icons.info_outline_rounded,
                       label: 'Status',
                       value: _appointment.statusLabel,
                       valueColor: statusColor,
                       isBoldValue: true,
                     ),
+                    if (_appointment.cancellationReason != null &&
+                        _appointment.cancellationReason!.isNotEmpty) ...[
+                      const Divider(height: 20),
+                      _buildDetailRow(
+                        icon: Icons.cancel_outlined,
+                        label: 'Reason',
+                        value: _appointment.cancellationReason!,
+                        valueColor: AppColors.emergency,
+                      ),
+                    ],
                   ],
                 ),
               ),
+
+               // ── Clinical Consultation & Prescriptions (Phase 4C) ─────────
+              if (_appointment.status == DoctorAppointmentStatus.confirmed ||
+                  _appointment.status == DoctorAppointmentStatus.completed) ...[
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Consultation & Prescription',
+                      style: AppTextStyles.headingSmall.copyWith(fontSize: 16),
+                    ),
+                    if (_consultationNote != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Authored',
+                          style: TextStyle(
+                            color: Color(0xFF059669),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                if (_isLoadingNote) ...[
+                  Container(
+                    height: 80,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const CircularProgressIndicator(
+                        color: AppColors.primary),
+                  ),
+                ] else if (_consultationNote != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x04000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_consultationNote!.diagnosis != null &&
+                            _consultationNote!.diagnosis!.isNotEmpty) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primarySurface,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.medical_services_outlined,
+                                    size: 16, color: AppColors.primary),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Diagnosis',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.textTertiary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _consultationNote!.diagnosis!,
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 20),
+                        ],
+                        if (_consultationNote!.notes != null &&
+                            _consultationNote!.notes!.isNotEmpty) ...[
+                          Text(
+                            'Clinical Observations',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textTertiary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _consultationNote!.notes!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const Divider(height: 20),
+                        ],
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Prescribed Medications (${_consultationNote!.prescriptions.length})',
+                              style: AppTextStyles.labelMedium.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _openConsultationNoteSheet,
+                              icon: const Icon(Icons.edit_outlined, size: 15),
+                              label: const Text('Edit Note / Rx'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                visualDensity: VisualDensity.compact,
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_consultationNote!.prescriptions.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          ..._consultationNote!.prescriptions.map((p) =>
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.medication_rounded,
+                                        size: 14, color: AppColors.primary),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${p.medicineName} (${p.dosage}) • ${p.frequency}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                        ],
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _openConsultationNoteSheet,
+                      icon: const Icon(Icons.edit_note_rounded, size: 20),
+                      label: const Text('Start Consultation & Write Rx'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
 
               const SizedBox(height: 28),
 
@@ -330,7 +692,8 @@ class _DoctorAppointmentDetailsScreenState
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _showDeclineConfirmation,
+                        onPressed:
+                            _isProcessing ? null : _showDeclineConfirmation,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.emergency,
                           side: const BorderSide(
@@ -342,19 +705,28 @@ class _DoctorAppointmentDetailsScreenState
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Decline',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: _isProcessing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.emergency,
+                                ),
+                              )
+                            : const Text(
+                                'Decline',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _handleAccept,
+                        onPressed: _isProcessing ? null : _handleAccept,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -364,13 +736,22 @@ class _DoctorAppointmentDetailsScreenState
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'Accept',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: _isProcessing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Accept',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -387,7 +768,8 @@ class _DoctorAppointmentDetailsScreenState
                   label: const Text('View Patient Profile'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 1.2),
+                    side:
+                        const BorderSide(color: AppColors.primary, width: 1.2),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

@@ -167,7 +167,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
             _buildInputField(
               label: 'Full Name',
               controller: _nameController,
-              hint: 'e.g. Dr. Ahmed Khan',
+              hint: 'e.g. Dr. Sarah Ahmed',
               icon: Icons.badge_outlined,
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Full name is required' : null,
@@ -178,7 +178,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
             _buildInputField(
               label: 'Specialization',
               controller: _specializationController,
-              hint: 'e.g. Cardiologist',
+              hint: 'e.g. Cardiologist, Dermatologist',
               icon: Icons.medical_services_outlined,
               validator: (v) => v == null || v.trim().isEmpty
                   ? 'Specialization is required'
@@ -202,7 +202,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
             _buildInputField(
               label: 'Years of Experience',
               controller: _experienceController,
-              hint: 'e.g. 8 years',
+              hint: 'e.g. 5 years',
               icon: Icons.timeline_rounded,
               validator: (v) => v == null || v.trim().isEmpty
                   ? 'Years of experience is required'
@@ -215,7 +215,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
               label: 'Short Bio',
               controller: _bioController,
               hint:
-                  'e.g. Cardiologist providing general and specialized cardiac consultation.',
+                  'Brief summary of your clinical practice and expertise.',
               icon: Icons.notes_rounded,
               maxLines: 3,
               validator: (v) =>

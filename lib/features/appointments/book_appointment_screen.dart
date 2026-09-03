@@ -14,9 +14,18 @@ class BookAppointmentScreen extends StatefulWidget {
 }
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
+  DoctorService? _selectedService;
   DateTime? _selectedDate;
   String? _selectedTime;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.doctor.services.isNotEmpty) {
+      _selectedService = widget.doctor.services.first;
+    }
+  }
 
   /// Generate next 7 days starting today.
   List<DateTime> get _dates {
@@ -32,8 +41,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     '3:00 PM',
   ];
 
+  int get _currentFee =>
+      _selectedService?.fee ?? widget.doctor.consultationFee;
+
   bool get _canContinue =>
-      _selectedDate != null && _selectedTime != null && !_isSubmitting;
+      _selectedDate != null &&
+      _selectedTime != null &&
+      _selectedService != null &&
+      !_isSubmitting;
 
   String _dayLabel(DateTime d) {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -42,18 +57,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   String _monthLabel(DateTime d) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return months[d.month - 1];
   }
@@ -68,9 +73,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         doctor: widget.doctor,
         date: _selectedDate!,
         time: _selectedTime!,
-        consultationFee: widget.doctor.consultationFee,
-        platformFee: 0,
-        paymentMethod: 'cash',
+        serviceId: _selectedService?.id,
+        serviceName: _selectedService?.name ?? 'General Consultation',
+        consultationFee: _currentFee,
+        clinicId: widget.doctor.clinicId,
       );
 
       if (!mounted) return;
@@ -102,6 +108,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   @override
   Widget build(BuildContext context) {
     final dates = _dates;
+    final services = widget.doctor.services;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -161,26 +168,92 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                                     style: AppTextStyles.bodyMedium.copyWith(
                                         color: AppColors.primary,
                                         fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 2),
+                                Text(widget.doctor.clinic,
+                                    style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.textTertiary)),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('Consultation',
-                                  style: AppTextStyles.bodySmall),
-                              Text(
-                                'Rs. ${widget.doctor.consultationFee}',
-                                style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.primary),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
 
                     const SizedBox(height: 24),
+
+                    // ── Select Service ───────────────────────────────────
+                    if (services.isNotEmpty) ...[
+                      Text('Select Service', style: AppTextStyles.headingSmall),
+                      const SizedBox(height: 12),
+                      Column(
+                        children: services.map((service) {
+                          final isSelected = _selectedService?.id != null
+                              ? _selectedService?.id == service.id
+                              : _selectedService?.name == service.name;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedService = service;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primarySurface
+                                    : AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.border,
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isSelected
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textTertiary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      service.name,
+                                      style: AppTextStyles.labelLarge.copyWith(
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Rs. ${service.fee}',
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
 
                     // ── Select Date ──────────────────────────────────────
                     Text('Select Date', style: AppTextStyles.headingSmall),
@@ -314,7 +387,68 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ── Cash Payment & Doctor Review Notice ───────────────
+                    // ── Appointment Summary & Cash Notice ─────────────────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Service',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.textSecondary)),
+                              Text(
+                                _selectedService?.name ?? 'General Consultation',
+                                style: AppTextStyles.labelLarge,
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Consultation Fee',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.textSecondary)),
+                              Text(
+                                'Rs. $_currentFee',
+                                style: AppTextStyles.labelLarge.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Payment',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.textSecondary)),
+                              Text(
+                                'Cash at clinic',
+                                style: AppTextStyles.labelLarge.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Cash Payment Notice ──────────────────────────────
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -332,7 +466,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                                   size: 18, color: AppColors.primary),
                               const SizedBox(width: 8),
                               Text(
-                                'Payment: Cash in Person',
+                                'Payment: Cash at Clinic',
                                 style: AppTextStyles.labelLarge.copyWith(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
@@ -342,7 +476,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Pay the consultation fee (Rs. ${widget.doctor.consultationFee}) directly to the doctor at the clinic.',
+                            'Payment is made directly to the doctor/clinic in cash upon your visit.',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textPrimary,
                             ),

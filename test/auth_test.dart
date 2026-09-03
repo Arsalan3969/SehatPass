@@ -2,12 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sehatpass/app/app_shell.dart';
 import 'package:sehatpass/auth/auth_gate.dart';
 import 'package:sehatpass/core/theme/app_theme.dart';
-import 'package:sehatpass/features/auth/login_screen.dart';
-import 'package:sehatpass/features/auth/signup_screen.dart';
 import 'package:sehatpass/features/auth/forgot_password_screen.dart';
+import 'package:sehatpass/features/auth/login_screen.dart';
 import 'package:sehatpass/features/auth/reset_password_screen.dart';
+import 'package:sehatpass/features/auth/signup_screen.dart';
+import 'package:sehatpass/features/doctor/doctor_shell_screen.dart';
+import 'package:sehatpass/features/doctor/onboarding/doctor_onboarding_screen.dart';
 import 'package:sehatpass/services/auth_service.dart';
 
 void main() {
@@ -455,6 +458,248 @@ void main() {
       );
       // Button should now be on cooldown
       expect(find.textContaining('Resend in '), findsOneWidget);
+    });
+  });
+
+  group('AuthGate Routing Decision Tests', () {
+    Session createMockSession(String userId) {
+      final mockUser = User(
+        id: userId,
+        appMetadata: {},
+        userMetadata: {},
+        aud: 'authenticated',
+        createdAt: DateTime.now().toIso8601String(),
+      );
+      return Session(
+        accessToken: 'mock-access-token',
+        tokenType: 'bearer',
+        user: mockUser,
+      );
+    }
+
+    testWidgets('Patient authenticated -> routes directly to AppShell',
+        (WidgetTester tester) async {
+      final session = createMockSession('patient-user-001');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'patient',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Emit signedIn event
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Should route to Patient AppShell
+      expect(find.byType(AppShell), findsOneWidget);
+      expect(find.byType(DoctorOnboardingScreen), findsNothing);
+      expect(find.byType(DoctorShellScreen), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Doctor with no doctor_profiles record -> routes to DoctorOnboardingScreen',
+        (WidgetTester tester) async {
+      final session = createMockSession('doctor-new-002');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'doctor',
+            doctorPublishedResolver: (uid) async => false, // no profile or unpublished
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Should route to Doctor Onboarding Screen
+      expect(find.byType(DoctorOnboardingScreen), findsOneWidget);
+      expect(find.byType(DoctorShellScreen), findsNothing);
+      expect(find.byType(AppShell), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Doctor with doctor_profiles is_published = false -> routes to DoctorOnboardingScreen',
+        (WidgetTester tester) async {
+      final session = createMockSession('doctor-draft-003');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'doctor',
+            doctorPublishedResolver: (uid) async => false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Should route to Doctor Onboarding Screen
+      expect(find.byType(DoctorOnboardingScreen), findsOneWidget);
+      expect(find.byType(DoctorShellScreen), findsNothing);
+      expect(find.byType(AppShell), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Doctor with doctor_profiles is_published = true -> routes to DoctorShellScreen',
+        (WidgetTester tester) async {
+      final session = createMockSession('doctor-published-004');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'doctor',
+            doctorPublishedResolver: (uid) async => true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Should route to Doctor Shell Screen
+      expect(find.byType(DoctorShellScreen), findsOneWidget);
+      expect(find.byType(DoctorOnboardingScreen), findsNothing);
+      expect(find.byType(AppShell), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Doctor profile lookup error -> shows Error/Retry screen, NOT onboarding or shell',
+        (WidgetTester tester) async {
+      final session = createMockSession('doctor-error-005');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'doctor',
+            doctorPublishedResolver: (uid) async =>
+                throw 'Network connection error. Please check your internet and try again.',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Should display Error screen with Retry Connection button
+      expect(find.text('Account Resolution Error'), findsOneWidget);
+      expect(
+        find.text('Network connection error. Please check your internet and try again.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retry Connection'), findsOneWidget);
+      expect(find.text('Sign Out'), findsOneWidget);
+
+      // Crucially, must NOT route to DoctorOnboardingScreen or DoctorShellScreen
+      expect(find.byType(DoctorOnboardingScreen), findsNothing);
+      expect(find.byType(DoctorShellScreen), findsNothing);
+      expect(find.byType(AppShell), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Tapping Retry Connection on Error screen retries resolution and succeeds',
+        (WidgetTester tester) async {
+      final session = createMockSession('doctor-retry-006');
+      final streamController = StreamController<AuthState>();
+      bool shouldFail = true;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'doctor',
+            doctorPublishedResolver: (uid) async {
+              if (shouldFail) {
+                throw 'Temporary server timeout.';
+              }
+              return true;
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      // Initially shows error screen
+      expect(find.text('Account Resolution Error'), findsOneWidget);
+      expect(find.text('Temporary server timeout.'), findsOneWidget);
+
+      // Now server recovers
+      shouldFail = false;
+
+      // Tap Retry Connection
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Retry Connection'));
+      await tester.pumpAndSettle();
+
+      // Should now resolve and show DoctorShellScreen
+      expect(find.byType(DoctorShellScreen), findsOneWidget);
+      expect(find.text('Account Resolution Error'), findsNothing);
+
+      await streamController.close();
+    });
+
+    testWidgets('Invalid user role shows error message and does not enter app',
+        (WidgetTester tester) async {
+      final session = createMockSession('user-unknown-007');
+      final streamController = StreamController<AuthState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AuthGate(
+            authStateStream: streamController.stream,
+            roleResolver: (uid) async => 'administrator_unknown',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      streamController.add(AuthState(AuthChangeEvent.signedIn, session));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Account Resolution Error'), findsOneWidget);
+      expect(
+        find.text('Invalid account role configured. Please contact support.'),
+        findsOneWidget,
+      );
+      expect(find.byType(AppShell), findsNothing);
+      expect(find.byType(DoctorShellScreen), findsNothing);
+      expect(find.byType(DoctorOnboardingScreen), findsNothing);
+
+      await streamController.close();
     });
   });
 }
