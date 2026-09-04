@@ -215,7 +215,7 @@ void main() {
       expect(parsedDoctor.experienceYears, '');
       expect(parsedDoctor.clinic, 'Clinic not specified');
       expect(parsedDoctor.location, 'Location not provided');
-      expect(parsedDoctor.name, 'Doctor');
+      expect(parsedDoctor.name, 'Name not provided');
     });
 
     testWidgets('5. Doctor can edit own clinic and UI immediately reflects changes', (tester) async {

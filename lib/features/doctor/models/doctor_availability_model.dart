@@ -161,5 +161,108 @@ class DoctorAvailabilityModel {
       endTime: parsedEnd,
     );
   }
+
+  /// Parses a time string (e.g. '09:00:00', '15:00:00', '9:00 AM', '2:00 PM') into TimeOfDay.
+  static TimeOfDay parseTimeString(String t) {
+    final trimmed = t.trim();
+    if (trimmed.isEmpty) return const TimeOfDay(hour: 10, minute: 0);
+
+    final isPm = trimmed.toLowerCase().contains('pm');
+    final isAm = trimmed.toLowerCase().contains('am');
+    final cleaned = trimmed.replaceAll(RegExp(r'[a-zA-Z]'), '').trim();
+    final parts = cleaned.split(':');
+    int h = int.tryParse(parts[0]) ?? 10;
+    int m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+
+    if (isPm && h < 12) h += 12;
+    if (isAm && h == 12) h = 0;
+
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  /// Formats total minutes from midnight into 12-hour format string (e.g. '9:00 AM', '12:00 PM', '2:00 PM').
+  static String formatMinutes(int totalMinutes) {
+    int hour = totalMinutes ~/ 60;
+    final minute = totalMinutes % 60;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    if (hour > 12) hour -= 12;
+    if (hour == 0) hour = 12;
+    final minuteStr = minute.toString().padLeft(2, '0');
+    return '$hour:$minuteStr $period';
+  }
+
+  /// Generates 15-minute time slots strictly within [start, end) where slot + 15 minutes <= end.
+  static List<String> generate15MinSlots({
+    required TimeOfDay start,
+    required TimeOfDay end,
+    int slotDurationMinutes = 15,
+  }) {
+    final startMins = start.hour * 60 + start.minute;
+    final endMins = end.hour * 60 + end.minute;
+    final List<String> slots = [];
+
+    int current = startMins;
+    while (current + slotDurationMinutes <= endMins) {
+      slots.add(formatMinutes(current));
+      current += slotDurationMinutes;
+    }
+
+    return slots;
+  }
+
+  /// Alias for generate15MinSlots supporting customizable slot durations.
+  static List<String> generateTimeSlots({
+    required TimeOfDay start,
+    required TimeOfDay end,
+    int slotDurationMinutes = 15,
+  }) =>
+      generate15MinSlots(
+        start: start,
+        end: end,
+        slotDurationMinutes: slotDurationMinutes,
+      );
+
+  /// Generates upcoming bookable dates matching [availableDays] within [windowDays].
+  static List<DateTime> generateUpcomingBookableDates({
+    required List<String> availableDays,
+    int windowDays = 14,
+    DateTime? fromDate,
+  }) {
+    if (availableDays.isEmpty) return [];
+
+    final base = fromDate ?? DateTime.now();
+    final today = DateTime(base.year, base.month, base.day);
+    final List<DateTime> dates = [];
+
+    for (int i = 0; i < windowDays; i++) {
+      final d = today.add(Duration(days: i));
+      final dayName = allDays[d.weekday - 1];
+      if (availableDays.any((day) => day.equalsIgnoreCase(dayName))) {
+        dates.add(d);
+      }
+    }
+
+    return dates;
+  }
+
+  /// Determines if a given time slot on a specific date has already passed.
+  static bool isSlotPassed(DateTime date, String slotTime, [DateTime? now]) {
+    final current = now ?? DateTime.now();
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final todayOnly = DateTime(current.year, current.month, current.day);
+
+    if (dateOnly.isBefore(todayOnly)) return true;
+    if (dateOnly.isAfter(todayOnly)) return false;
+
+    // Today: check if slot time <= current time
+    final tod = parseTimeString(slotTime);
+    final slotDateTime = DateTime(current.year, current.month, current.day, tod.hour, tod.minute);
+    return slotDateTime.isBefore(current) || slotDateTime.isAtSameMomentAs(current);
+  }
+}
+
+extension _StringExtension on String {
+  bool equalsIgnoreCase(String other) =>
+      toLowerCase() == other.toLowerCase();
 }
 

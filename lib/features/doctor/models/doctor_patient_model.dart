@@ -68,7 +68,7 @@ class DoctorPatientModel {
   /// Robust constructor from Supabase database joined map or repository aggregated data.
   factory DoctorPatientModel.fromMap(
     Map<String, dynamic> map, {
-    int totalVisits = 1,
+    int? totalVisits,
     DateTime? lastAppointmentDate,
     String? latestServiceName,
   }) {
@@ -84,11 +84,14 @@ class DoctorPatientModel {
             ? Map<String, dynamic>.from(map['profile'] as Map)
             : null);
 
-    final fullName = profileMap?['full_name']?.toString() ??
-        map['full_name']?.toString() ??
-        map['name']?.toString() ??
-        map['patient_name']?.toString() ??
-        'Patient';
+    final rawFullName = profileMap?['full_name']?.toString().trim() ??
+        map['full_name']?.toString().trim() ??
+        map['name']?.toString().trim() ??
+        map['patient_name']?.toString().trim() ??
+        '';
+
+    final fullName =
+        rawFullName.isNotEmpty ? rawFullName : 'Name not provided';
 
     final photoUrl = profileMap?['profile_photo_url']?.toString() ??
         map['profile_photo_url']?.toString() ??
@@ -129,21 +132,21 @@ class DoctorPatientModel {
         map['medical_conditions']?.toString() ??
         'None added';
 
-    // 3. Resolve visit metrics
-    final visitCount = (map['total_visits'] as num?)?.toInt() ??
+    // 3. Resolve visit metrics (strictly completed visits when provided)
+    final visitCount = totalVisits ??
+        (map['total_visits'] as num?)?.toInt() ??
         (map['appointment_count'] as num?)?.toInt() ??
-        totalVisits;
+        1;
 
     DateTime? resolvedLastDate = lastAppointmentDate;
     if (resolvedLastDate == null && map['last_appointment_date'] != null) {
       resolvedLastDate = DateTime.tryParse(map['last_appointment_date'].toString());
     }
-    if (resolvedLastDate == null && map['appointment_date'] != null) {
-      resolvedLastDate = DateTime.tryParse(map['appointment_date'].toString());
-    }
 
     final lastVisitStr = map['last_visit']?.toString() ??
-        (resolvedLastDate != null ? formatDate(resolvedLastDate) : 'Recent');
+        (resolvedLastDate != null
+            ? formatDate(resolvedLastDate)
+            : (visitCount == 0 ? 'No visits yet' : 'Recent'));
 
     final primaryConditionStr = latestServiceName ??
         map['primary_condition']?.toString() ??

@@ -101,6 +101,8 @@ class _DoctorAppointmentDetailsScreenState
     try {
       if (widget.onAccept != null) {
         await widget.onAccept!(_appointment);
+      } else {
+        await _repository.acceptAppointment(_appointment.id);
       }
       if (mounted) {
         setState(() {
@@ -178,6 +180,8 @@ class _DoctorAppointmentDetailsScreenState
               try {
                 if (widget.onDecline != null) {
                   await widget.onDecline!(_appointment);
+                } else {
+                  await _repository.declineAppointment(_appointment.id);
                 }
                 if (mounted) {
                   setState(() {
@@ -362,7 +366,7 @@ class _DoctorAppointmentDetailsScreenState
                                     ? '${_appointment.patientAge} yrs • ${_appointment.patientGender}'
                                     : (_appointment.referenceNo.isNotEmpty
                                         ? 'Ref: ${_appointment.referenceNo}'
-                                        : 'Patient'),
+                                        : ''),
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
@@ -484,20 +488,21 @@ class _DoctorAppointmentDetailsScreenState
                     ],
                   ],
                 ),
-              ),
-
-               // ── Clinical Consultation & Prescriptions (Phase 4C) ─────────
+              ),                // ── Clinical Consultation & Prescriptions (Phase 4C) ─────────
               if (_appointment.status == DoctorAppointmentStatus.confirmed ||
                   _appointment.status == DoctorAppointmentStatus.completed) ...[
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Consultation & Prescription',
-                      style: AppTextStyles.headingSmall.copyWith(fontSize: 16),
+                    Expanded(
+                      child: Text(
+                        'Consultation & Prescription',
+                        style: AppTextStyles.headingSmall.copyWith(fontSize: 16),
+                      ),
                     ),
-                    if (_consultationNote != null)
+                    if (_consultationNote != null) ...[
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -514,6 +519,7 @@ class _DoctorAppointmentDetailsScreenState
                           ),
                         ),
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -613,12 +619,15 @@ class _DoctorAppointmentDetailsScreenState
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Prescribed Medications (${_consultationNote!.prescriptions.length})',
-                              style: AppTextStyles.labelMedium.copyWith(
-                                fontWeight: FontWeight.w700,
+                            Expanded(
+                              child: Text(
+                                'Prescribed Medications (${_consultationNote!.prescriptions.length})',
+                                style: AppTextStyles.labelMedium.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             TextButton.icon(
                               onPressed: _openConsultationNoteSheet,
                               icon: const Icon(Icons.edit_outlined, size: 15),
@@ -798,23 +807,31 @@ class _DoctorAppointmentDetailsScreenState
     bool isBoldValue = false,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 13,
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: AppTextStyles.bodyMedium.copyWith(
-            fontWeight: isBoldValue ? FontWeight.w700 : FontWeight.w600,
-            color: valueColor ?? AppColors.textPrimary,
-            fontSize: 13,
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: isBoldValue ? FontWeight.w700 : FontWeight.w600,
+              color: valueColor ?? AppColors.textPrimary,
+              fontSize: 13,
+            ),
           ),
         ),
       ],

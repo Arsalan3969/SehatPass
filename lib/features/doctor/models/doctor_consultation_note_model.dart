@@ -10,7 +10,6 @@ class DoctorConsultationNoteModel {
   final String? notes;
   final List<PrescriptionItemModel> prescriptions;
   final DateTime? createdAt;
-  final DateTime? updatedAt;
 
   // Optional UI metadata joins
   final String? doctorName;
@@ -27,7 +26,6 @@ class DoctorConsultationNoteModel {
     this.notes,
     this.prescriptions = const [],
     this.createdAt,
-    this.updatedAt,
     this.doctorName,
     this.doctorSpecialization,
     this.appointmentReferenceNo,
@@ -43,7 +41,6 @@ class DoctorConsultationNoteModel {
     String? notes,
     List<PrescriptionItemModel>? prescriptions,
     DateTime? createdAt,
-    DateTime? updatedAt,
     String? doctorName,
     String? doctorSpecialization,
     String? appointmentReferenceNo,
@@ -58,7 +55,6 @@ class DoctorConsultationNoteModel {
       notes: notes ?? this.notes,
       prescriptions: prescriptions ?? this.prescriptions,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
       doctorName: doctorName ?? this.doctorName,
       doctorSpecialization: doctorSpecialization ?? this.doctorSpecialization,
       appointmentReferenceNo:
@@ -90,6 +86,19 @@ class DoctorConsultationNoteModel {
         ? Map<String, dynamic>.from(map['appointments'] as Map)
         : null;
 
+    final rawDocName = profileMap?['full_name']?.toString().trim() ??
+        map['doctor_name']?.toString().trim() ??
+        '';
+    final String? formattedDocName;
+    if (rawDocName.isEmpty) {
+      formattedDocName = null;
+    } else if (rawDocName.toLowerCase().startsWith('dr.') ||
+        rawDocName.toLowerCase().startsWith('dr ')) {
+      formattedDocName = rawDocName;
+    } else {
+      formattedDocName = 'Dr. $rawDocName';
+    }
+
     return DoctorConsultationNoteModel(
       id: map['id']?.toString() ?? '',
       appointmentId: map['appointment_id']?.toString() ?? '',
@@ -101,11 +110,7 @@ class DoctorConsultationNoteModel {
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'].toString())
           : null,
-      updatedAt: map['updated_at'] != null
-          ? DateTime.tryParse(map['updated_at'].toString())
-          : null,
-      doctorName: profileMap?['full_name']?.toString() ??
-          map['doctor_name']?.toString(),
+      doctorName: formattedDocName,
       doctorSpecialization: doctorProfileMap?['specialization']?.toString() ??
           map['doctor_specialization']?.toString(),
       appointmentReferenceNo: aptMap?['reference_no']?.toString() ??
@@ -125,7 +130,6 @@ class DoctorConsultationNoteModel {
       if (notes != null) 'notes': notes!.trim(),
       'prescriptions': prescriptions.map((p) => p.toMap()).toList(),
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
-      'updated_at': (updatedAt ?? DateTime.now()).toIso8601String(),
     };
   }
 

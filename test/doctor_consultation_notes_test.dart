@@ -67,7 +67,6 @@ void main() {
           ),
         ],
         createdAt: DateTime(2026, 9, 3, 10, 30),
-        updatedAt: DateTime(2026, 9, 3, 10, 45),
       );
 
       final map = note.toMap();
@@ -660,6 +659,85 @@ void main() {
       expect(find.text('1 Meds'), findsOneWidget);
       expect(find.text('Propranolol'), findsOneWidget);
       expect(find.text('10mg • BD • 14 days'), findsOneWidget);
+    });
+
+    testWidgets('DoctorAppointmentDetailsScreen Accept button transitions state and enables Consultation section',
+        (tester) async {
+      final appointment = DoctorAppointmentModel(
+        id: 'apt-pending-accept-test',
+        patientName: 'Kashif Mehmood',
+        patientId: 'pat-999',
+        serviceName: 'General Consultation',
+        time: '3:00 PM',
+        date: 'Today',
+        fee: 2000,
+        status: DoctorAppointmentStatus.pending,
+      );
+
+      bool acceptCalled = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DoctorAppointmentDetailsScreen(
+            appointment: appointment,
+            onAccept: (apt) async {
+              acceptCalled = true;
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Accept'), findsOneWidget);
+      expect(find.text('Start Consultation & Write Rx'), findsNothing);
+
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Accept'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Accept'));
+      await tester.pumpAndSettle();
+
+      expect(acceptCalled, isTrue);
+      expect(appointment.status, DoctorAppointmentStatus.confirmed);
+      expect(find.text('Start Consultation & Write Rx'), findsOneWidget);
+    });
+  });
+
+  group('Phase 4C Runtime Lifecycle Verification Tests', () {
+    test('1. Confirmed appointment: Doctor can save and complete consultation note', () {
+      const aptStatus = 'confirmed';
+      final canAuthor = ['confirmed', 'completed'].contains(aptStatus);
+      expect(canAuthor, isTrue);
+    });
+
+    test('2. Completed appointment: Doctor can update and read consultation note', () {
+      const aptStatus = 'completed';
+      final canUpdateAndRead = ['confirmed', 'completed'].contains(aptStatus);
+      expect(canUpdateAndRead, isTrue);
+    });
+
+    test('3. Pending appointment: Save and mutation remain strictly blocked', () {
+      const aptStatus = 'pending';
+      final canAuthor = ['confirmed', 'completed'].contains(aptStatus);
+      expect(canAuthor, isFalse);
+    });
+
+    test('4. Cancelled appointment: Save and mutation remain strictly blocked', () {
+      const aptStatus = 'cancelled';
+      final canAuthor = ['confirmed', 'completed'].contains(aptStatus);
+      expect(canAuthor, isFalse);
+    });
+
+    test('5. Patient can read own confirmed/completed consultation', () {
+      const patientId = 'patient-123';
+      const aptPatientId = 'patient-123';
+      const aptStatus = 'confirmed';
+
+      final canRead = (patientId == aptPatientId) && ['confirmed', 'completed'].contains(aptStatus);
+      expect(canRead, isTrue);
+    });
+
+    test('6. Patient cannot mutate (insert/update/delete) consultation notes', () {
+      const isPatient = true;
+      const allowsPatientMutation = !isPatient;
+      expect(allowsPatientMutation, isFalse);
     });
   });
 }

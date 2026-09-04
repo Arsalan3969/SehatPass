@@ -28,7 +28,77 @@ class Phase5aMockAppointmentRepository extends AppointmentRepository {
   });
 
   @override
-  String? get currentUserId => 'patient-auth-uid-123';
+  Future<List<Map<String, dynamic>>> getDoctorAvailability({
+    required String doctorId,
+    String? clinicId,
+  }) async {
+    return [
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Monday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Tuesday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Wednesday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Thursday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Friday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Saturday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+      {
+        'doctor_id': doctorId,
+        'clinic_id': clinicId ?? 'clinic-101',
+        'day_of_week': 'Sunday',
+        'start_time': '09:00:00',
+        'end_time': '15:00:00',
+        'is_available': true,
+      },
+    ];
+  }
+
+  @override
+  Future<List<String>> getBookedSlots({
+    required String doctorId,
+    required DateTime date,
+  }) async {
+    return [];
+  }
 
   @override
   Future<Appointment> bookAppointment({

@@ -77,7 +77,7 @@ class Doctor {
 
     final String doctorName;
     if (rawName.isEmpty) {
-      doctorName = 'Doctor';
+      doctorName = 'Name not provided';
     } else if (rawName.toLowerCase().startsWith('dr.') ||
         rawName.toLowerCase().startsWith('dr ')) {
       doctorName = rawName;

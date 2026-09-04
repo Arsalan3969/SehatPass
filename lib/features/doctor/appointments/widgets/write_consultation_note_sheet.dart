@@ -460,34 +460,41 @@ class _WriteConsultationNoteSheetState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Prescribed Medications',
-                              style: AppTextStyles.labelLarge
-                                  .copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            if (_prescriptions.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primarySurface,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                        Expanded(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
                                 child: Text(
-                                  '${_prescriptions.length}',
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  'Prescribed Medications',
+                                  style: AppTextStyles.labelLarge
+                                      .copyWith(fontWeight: FontWeight.w700),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (_prescriptions.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySurface,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${_prescriptions.length}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         TextButton.icon(
                           onPressed: () =>
                               _openAddEditPrescriptionDialog(),
@@ -610,6 +617,11 @@ class _WriteConsultationNoteSheetState
                                   ),
                                 ),
                                 IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
                                   icon: const Icon(Icons.edit_outlined,
                                       size: 18,
                                       color: AppColors.textSecondary),
@@ -621,6 +633,11 @@ class _WriteConsultationNoteSheetState
                                   ),
                                 ),
                                 IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
                                   icon: const Icon(Icons.delete_outline_rounded,
                                       size: 18,
                                       color: AppColors.emergency),

@@ -72,6 +72,20 @@ class DoctorAppointmentModel {
     }
   }
 
+  /// Evaluates whether the appointment is scheduled specifically for today's date.
+  /// Uses authoritative [appointmentDate] when present, falling back to [date] string.
+  bool isScheduledForToday([DateTime? now]) {
+    final current = now ?? DateTime.now();
+    if (appointmentDate != null) {
+      return appointmentDate!.year == current.year &&
+          appointmentDate!.month == current.month &&
+          appointmentDate!.day == current.day;
+    }
+    return date.trim().toLowerCase() == 'today';
+  }
+
+  bool get isToday => isScheduledForToday();
+
   static DoctorAppointmentStatus parseStatus(dynamic value) {
     if (value == null) return DoctorAppointmentStatus.pending;
     final str = value.toString().trim().toLowerCase();
@@ -102,10 +116,13 @@ class DoctorAppointmentModel {
         ? Map<String, dynamic>.from(map['profiles'] as Map)
         : null;
 
-    final patientName = profileMap?['full_name']?.toString() ??
-        map['patient_name']?.toString() ??
-        map['patientName']?.toString() ??
-        'Patient';
+    final rawPatientName = profileMap?['full_name']?.toString().trim() ??
+        map['patient_name']?.toString().trim() ??
+        map['patientName']?.toString().trim() ??
+        '';
+
+    final patientName =
+        rawPatientName.isNotEmpty ? rawPatientName : 'Name not provided';
 
     final patientPhone = profileMap?['phone']?.toString() ??
         map['patient_phone']?.toString() ??

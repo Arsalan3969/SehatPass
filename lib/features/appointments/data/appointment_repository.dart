@@ -151,6 +151,54 @@ class AppointmentRepository extends ChangeNotifier {
     }
   }
 
+  /// Fetches published availability rows for a specific doctor and clinic from `public.doctor_availability`.
+  Future<List<Map<String, dynamic>>> getDoctorAvailability({
+    required String doctorId,
+    String? clinicId,
+  }) async {
+    try {
+      var query = _client
+          .from('doctor_availability')
+          .select()
+          .eq('doctor_id', doctorId)
+          .eq('is_available', true);
+
+      if (clinicId != null && clinicId.isNotEmpty) {
+        query = query.or('clinic_id.eq.$clinicId,clinic_id.is.null');
+      }
+
+      final response = await query;
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('AppointmentRepository: Error fetching doctor availability: $e');
+      throw 'Unable to load doctor availability. Please try again.';
+    }
+  }
+
+  /// Fetches currently booked appointment times for a doctor on a specific date (pending or confirmed).
+  Future<List<String>> getBookedSlots({
+    required String doctorId,
+    required DateTime date,
+  }) async {
+    try {
+      final dateStr = _formatDate(date);
+      final response = await _client
+          .from('appointments')
+          .select('appointment_time')
+          .eq('doctor_id', doctorId)
+          .eq('appointment_date', dateStr)
+          .inFilter('status', ['pending', 'confirmed']);
+
+      return (response as List)
+          .map((item) => (item as Map)['appointment_time']?.toString() ?? '')
+          .where((t) => t.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('AppointmentRepository: Error fetching booked slots: $e');
+      return [];
+    }
+  }
+
   /// Fetches appointments for the currently authenticated patient from Supabase.
   Future<List<Appointment>> getPatientAppointments() async {
     final userId = currentUserId;

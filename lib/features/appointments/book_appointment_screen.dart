@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../doctor/models/doctor_availability_model.dart';
 import 'appointment_confirmation_screen.dart';
 import 'data/appointment_repository.dart';
 import 'models/doctor_model.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final Doctor doctor;
-  const BookAppointmentScreen({super.key, required this.doctor});
+  final AppointmentRepository? repository;
+
+  const BookAppointmentScreen({
+    super.key,
+    required this.doctor,
+    this.repository,
+  });
 
   @override
   State<BookAppointmentScreen> createState() => _BookAppointmentScreenState();
@@ -17,7 +24,18 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   DoctorService? _selectedService;
   DateTime? _selectedDate;
   String? _selectedTime;
+
+  bool _isLoading = true;
+  String? _errorMessage;
   bool _isSubmitting = false;
+
+  List<Map<String, dynamic>> _availabilityRows = [];
+  List<DateTime> _availableDates = [];
+  List<String> _currentTimeSlots = [];
+  List<String> _bookedSlots = [];
+
+  AppointmentRepository get _repo =>
+      widget.repository ?? AppointmentRepository.instance;
 
   @override
   void initState() {
@@ -25,21 +43,112 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     if (widget.doctor.services.isNotEmpty) {
       _selectedService = widget.doctor.services.first;
     }
+    _loadDoctorAvailability();
   }
 
-  /// Generate next 7 days starting today.
-  List<DateTime> get _dates {
-    final today = DateTime.now();
-    return List.generate(7, (i) => today.add(Duration(days: i)));
+  Future<void> _loadDoctorAvailability() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final rows = await _repo.getDoctorAvailability(
+        doctorId: widget.doctor.id,
+        clinicId: widget.doctor.clinicId,
+      );
+
+      final activeRows = rows.where((r) => r['is_available'] == true).toList();
+      final availableDays = activeRows
+          .map((r) => r['day_of_week']?.toString())
+          .where((d) => d != null && d.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList();
+
+      final dates = DoctorAvailabilityModel.generateUpcomingBookableDates(
+        availableDays: availableDays,
+        windowDays: 28,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _availabilityRows = activeRows;
+        _availableDates = dates;
+        _isLoading = false;
+      });
+
+      if (dates.isNotEmpty) {
+        await _onDateChanged(dates.first);
+      } else {
+        setState(() {
+          _selectedDate = null;
+          _currentTimeSlots = [];
+          _bookedSlots = [];
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e is String
+            ? e
+            : 'Unable to load appointment availability. Please check your connection and try again.';
+      });
+    }
   }
 
-  static const List<String> _timeSlots = [
-    '10:00 AM',
-    '11:00 AM',
-    '12:00 PM',
-    '2:00 PM',
-    '3:00 PM',
-  ];
+  Future<void> _onDateChanged(DateTime date) async {
+    setState(() {
+      _selectedDate = date;
+      _selectedTime = null;
+    });
+
+    // 1. Fetch booked slots for the selected doctor & date
+    List<String> booked = [];
+    try {
+      booked = await _repo.getBookedSlots(
+        doctorId: widget.doctor.id,
+        date: date,
+      );
+    } catch (_) {
+      booked = [];
+    }
+
+    // 2. Find matching doctor_availability row for date's weekday
+    final dayName = DoctorAvailabilityModel.allDays[date.weekday - 1];
+    final match = _availabilityRows.firstWhere(
+      (r) =>
+          r['day_of_week']?.toString().toLowerCase() ==
+          dayName.toLowerCase(),
+      orElse: () => <String, dynamic>{},
+    );
+
+    List<String> generatedSlots = [];
+    if (match.isNotEmpty) {
+      final startTime = DoctorAvailabilityModel.parseTimeString(
+          match['start_time']?.toString() ?? '10:00:00');
+      final endTime = DoctorAvailabilityModel.parseTimeString(
+          match['end_time']?.toString() ?? '16:00:00');
+
+      final allSlots = DoctorAvailabilityModel.generate15MinSlots(
+        start: startTime,
+        end: endTime,
+      );
+
+      // Filter out slots that have already passed if date is today
+      generatedSlots = allSlots.where((slot) {
+        return !DoctorAvailabilityModel.isSlotPassed(date, slot);
+      }).toList();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _currentTimeSlots = generatedSlots;
+      _bookedSlots = booked;
+    });
+  }
 
   int get _currentFee =>
       _selectedService?.fee ?? widget.doctor.consultationFee;
@@ -48,6 +157,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       _selectedDate != null &&
       _selectedTime != null &&
       _selectedService != null &&
+      !_bookedSlots.contains(_selectedTime) &&
       !_isSubmitting;
 
   String _dayLabel(DateTime d) {
@@ -69,7 +179,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final appointment = await AppointmentRepository.instance.bookAppointment(
+      final appointment = await _repo.bookAppointment(
         doctor: widget.doctor,
         date: _selectedDate!,
         time: _selectedTime!,
@@ -107,7 +217,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dates = _dates;
     final services = widget.doctor.services;
 
     return Scaffold(
@@ -241,8 +350,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                                     'Rs. ${service.fee}',
                                     style: AppTextStyles.labelLarge.copyWith(
                                       color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.textPrimary,
+                                            ? AppColors.primary
+                                            : AppColors.textPrimary,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -255,137 +364,274 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       const SizedBox(height: 20),
                     ],
 
-                    // ── Select Date ──────────────────────────────────────
-                    Text('Select Date', style: AppTextStyles.headingSmall),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 80,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: dates.length,
-                        separatorBuilder: (_, i) => const SizedBox(width: 10),
-                        itemBuilder: (context, i) {
-                          final d = dates[i];
-                          final selected = _selectedDate != null &&
-                              _selectedDate!.year == d.year &&
-                              _selectedDate!.month == d.month &&
-                              _selectedDate!.day == d.day;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedDate = d),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 60,
+                    // ── Main Availability States ─────────────────────────
+                    if (_isLoading) ...[
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ] else if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.emergencySurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.emergencyBorder),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _errorMessage!,
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.emergency),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: _loadDoctorAvailability,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.emergency,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (_availableDates.isEmpty) ...[
+                      // Empty State A: Doctor has no published availability
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 32),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
                               decoration: BoxDecoration(
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.surface,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
+                                color: AppColors.primarySurface,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.event_busy_rounded,
+                                size: 28,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'This doctor has not published any appointment availability yet.',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Please check back later or choose another doctor with published hours.',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // ── Select Date ────────────────────────────────────
+                      Text('Select Date', style: AppTextStyles.headingSmall),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 80,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _availableDates.length,
+                          separatorBuilder: (_, i) => const SizedBox(width: 10),
+                          itemBuilder: (context, i) {
+                            final d = _availableDates[i];
+                            final selected = _selectedDate != null &&
+                                _selectedDate!.year == d.year &&
+                                _selectedDate!.month == d.month &&
+                                _selectedDate!.day == d.day;
+                            return GestureDetector(
+                              onTap: () => _onDateChanged(d),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 60,
+                                decoration: BoxDecoration(
                                   color: selected
                                       ? AppColors.primary
-                                      : AppColors.border,
+                                      : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: selected
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                  ),
+                                  boxShadow: selected
+                                      ? [
+                                          const BoxShadow(
+                                            color: Color(0x252E7D5E),
+                                            blurRadius: 10,
+                                            offset: Offset(0, 4),
+                                          )
+                                        ]
+                                      : null,
                                 ),
-                                boxShadow: selected
-                                    ? [
-                                        const BoxShadow(
-                                          color: Color(0x252E7D5E),
-                                          blurRadius: 10,
-                                          offset: Offset(0, 4),
-                                        )
-                                      ]
-                                    : null,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _dayLabel(d),
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: selected
+                                            ? Colors.white70
+                                            : AppColors.textSecondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${d.day}',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: selected
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _monthLabel(d),
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: selected
+                                            ? Colors.white70
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _dayLabel(d),
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: selected
-                                          ? Colors.white70
-                                          : AppColors.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${d.day}',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                      color: selected
-                                          ? Colors.white
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _monthLabel(d),
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: selected
-                                          ? Colors.white70
-                                          : AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                    // ── Select Time ──────────────────────────────────────
-                    Text('Select Time', style: AppTextStyles.headingSmall),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: _timeSlots.map((slot) {
-                        final selected = slot == _selectedTime;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedTime = slot),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 18, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                              ),
-                              boxShadow: selected
-                                  ? [
-                                      const BoxShadow(
-                                        color: Color(0x252E7D5E),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 3),
-                                      )
-                                    ]
-                                  : null,
-                            ),
-                            child: Text(
-                              slot,
-                              style: AppTextStyles.labelLarge.copyWith(
-                                color: selected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                                fontSize: 13,
-                              ),
-                            ),
+                      // ── Select Time ────────────────────────────────────
+                      Text('Select Time', style: AppTextStyles.headingSmall),
+                      const SizedBox(height: 12),
+
+                      if (_currentTimeSlots.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
                           ),
-                        );
-                      }).toList(),
-                    ),
+                          child: Text(
+                            'No appointment times available for this date.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else if (_currentTimeSlots.every((s) => _bookedSlots.contains(s)))
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Text(
+                            'No available appointment times for this date.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _currentTimeSlots.map((slot) {
+                            final isBooked = _bookedSlots.contains(slot);
+                            final selected = slot == _selectedTime && !isBooked;
 
-                    const SizedBox(height: 24),
+                            return GestureDetector(
+                              onTap: isBooked
+                                  ? null
+                                  : () => setState(() => _selectedTime = slot),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isBooked
+                                      ? AppColors.background
+                                      : (selected
+                                          ? AppColors.primary
+                                          : AppColors.surface),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isBooked
+                                        ? AppColors.border
+                                        : (selected
+                                            ? AppColors.primary
+                                            : AppColors.border),
+                                  ),
+                                  boxShadow: selected
+                                      ? [
+                                          const BoxShadow(
+                                            color: Color(0x252E7D5E),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 3),
+                                          )
+                                        ]
+                                      : null,
+                                ),
+                                child: Text(
+                                  isBooked ? '$slot (Booked)' : slot,
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: isBooked
+                                        ? AppColors.textTertiary
+                                        : (selected
+                                            ? Colors.white
+                                            : AppColors.textPrimary),
+                                    fontSize: 13,
+                                    decoration: isBooked
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+
+                      const SizedBox(height: 24),
+                    ],
 
                     // ── Appointment Summary & Cash Notice ─────────────────
                     Container(

@@ -727,28 +727,40 @@ class DoctorRepository {
       final List<DoctorPatientModel> patients = [];
       for (final pId in uniquePatientIds) {
         final pApts = appointmentsByPatient[pId] ?? [];
-        final latestApt = pApts.isNotEmpty ? pApts.first : null;
-        DateTime? latestDate;
-        if (latestApt != null && latestApt['appointment_date'] != null) {
-          latestDate = DateTime.tryParse(latestApt['appointment_date'].toString());
+        final completedApts = pApts
+            .where((a) =>
+                a['status']?.toString().trim().toLowerCase() == 'completed')
+            .toList();
+
+        final latestCompletedApt =
+            completedApts.isNotEmpty ? completedApts.first : null;
+        DateTime? lastCompletedDate;
+        if (latestCompletedApt != null &&
+            latestCompletedApt['appointment_date'] != null) {
+          lastCompletedDate = DateTime.tryParse(
+              latestCompletedApt['appointment_date'].toString());
         }
+
+        final latestAptOverall = pApts.isNotEmpty ? pApts.first : null;
 
         final combinedMap = <String, dynamic>{
           'id': pId,
           'patient_id': pId,
           if (profilesMap.containsKey(pId)) 'profiles': profilesMap[pId],
-          if (patientProfilesMap.containsKey(pId)) 'patient_profiles': patientProfilesMap[pId],
+          if (patientProfilesMap.containsKey(pId))
+            'patient_profiles': patientProfilesMap[pId],
         };
 
         patients.add(DoctorPatientModel.fromMap(
           combinedMap,
-          totalVisits: pApts.length,
-          lastAppointmentDate: latestDate,
-          latestServiceName: latestApt?['service_name']?.toString(),
+          totalVisits: completedApts.length,
+          lastAppointmentDate: lastCompletedDate,
+          latestServiceName: latestCompletedApt?['service_name']?.toString() ??
+              latestAptOverall?['service_name']?.toString(),
         ));
       }
 
-      // Sort by latest visit date descending
+      // Sort by latest completed visit date descending
       patients.sort((a, b) {
         final aDate = a.lastAppointmentDate;
         final bDate = b.lastAppointmentDate;
@@ -807,11 +819,21 @@ class DoctorRepository {
       final profileRow = results[0];
       final patientProfileRow = results[1];
 
-      final latestApt = aptList.first;
-      DateTime? latestDate;
-      if (latestApt['appointment_date'] != null) {
-        latestDate = DateTime.tryParse(latestApt['appointment_date'].toString());
+      final completedApts = aptList
+          .where((a) =>
+              a['status']?.toString().trim().toLowerCase() == 'completed')
+          .toList();
+
+      final latestCompletedApt =
+          completedApts.isNotEmpty ? completedApts.first : null;
+      DateTime? lastCompletedDate;
+      if (latestCompletedApt != null &&
+          latestCompletedApt['appointment_date'] != null) {
+        lastCompletedDate = DateTime.tryParse(
+            latestCompletedApt['appointment_date'].toString());
       }
+
+      final latestAptOverall = aptList.first;
 
       final combinedMap = <String, dynamic>{
         'id': patientId,
@@ -826,9 +848,10 @@ class DoctorRepository {
 
       return DoctorPatientModel.fromMap(
         combinedMap,
-        totalVisits: aptList.length,
-        lastAppointmentDate: latestDate,
-        latestServiceName: latestApt['service_name']?.toString(),
+        totalVisits: completedApts.length,
+        lastAppointmentDate: lastCompletedDate,
+        latestServiceName: latestCompletedApt?['service_name']?.toString() ??
+            latestAptOverall['service_name']?.toString(),
       );
     } catch (e) {
       debugPrint('DoctorRepository: Error fetching patient detail: $e');
@@ -1006,13 +1029,9 @@ class DoctorRepository {
             notes,
             prescriptions,
             created_at,
-            updated_at,
             profiles!doctor_id (
               id,
               full_name
-            ),
-            doctor_profiles!doctor_id (
-              specialization
             ),
             appointments!appointment_id (
               id,
@@ -1052,55 +1071,83 @@ class DoctorRepository {
     }
 
     try {
-      if (completeAppointment) {
-        // Invoke atomic save_and_complete_consultation RPC
-        final rpcParams = <String, dynamic>{
-          'p_appointment_id': note.appointmentId,
-          'p_diagnosis': note.diagnosis?.trim(),
-          'p_notes': note.notes?.trim(),
-          'p_prescriptions': note.prescriptions.map((p) => p.toMap()).toList(),
+      // 1. Authoritatively fetch and validate appointment
+      final aptRow = await _client
+          .from('appointments')
+          .select('id, doctor_id, patient_id, status')
+          .eq('id', note.appointmentId)
+          .maybeSingle();
+
+      if (aptRow == null) {
+        throw 'Appointment not found. Please refresh and retry.';
+      }
+
+      final aptDocId = aptRow['doctor_id']?.toString();
+      if (aptDocId != docId) {
+        throw 'Access denied. You can only author consultation notes for your assigned appointments.';
+      }
+
+      final aptStatus = aptRow['status']?.toString().toLowerCase() ?? '';
+      if (aptStatus != 'confirmed' && aptStatus != 'completed') {
+        throw 'Consultation notes can only be authored for confirmed or completed appointments (current status: $aptStatus).';
+      }
+
+      final resolvedPatientId = (aptRow['patient_id']?.toString().isNotEmpty ?? false)
+          ? aptRow['patient_id'].toString()
+          : note.patientId;
+
+      // 2. Check if a consultation note already exists for this appointment
+      final existingResponse = await _client
+          .from('doctor_consultation_notes')
+          .select('id, appointment_id, doctor_id, patient_id')
+          .eq('appointment_id', note.appointmentId)
+          .maybeSingle();
+
+      Map<String, dynamic> response;
+      if (existingResponse != null) {
+        // UPDATE existing record cleanly without modifying immutable columns (id, doctor_id, patient_id, appointment_id)
+        final updatePayload = <String, dynamic>{
+          'diagnosis': note.diagnosis?.trim(),
+          'notes': note.notes?.trim(),
+          'prescriptions': note.prescriptions.map((p) => p.toMap()).toList(),
         };
 
-        final response = await _client.rpc(
-          'save_and_complete_consultation',
-          params: rpcParams,
+        response = await _client
+            .from('doctor_consultation_notes')
+            .update(updatePayload)
+            .eq('appointment_id', note.appointmentId)
+            .select()
+            .single();
+      } else {
+        // INSERT new record
+        final insertPayload = <String, dynamic>{
+          'appointment_id': note.appointmentId,
+          'doctor_id': docId,
+          'patient_id': resolvedPatientId,
+          'diagnosis': note.diagnosis?.trim(),
+          'notes': note.notes?.trim(),
+          'prescriptions': note.prescriptions.map((p) => p.toMap()).toList(),
+        };
+
+        response = await _client
+            .from('doctor_consultation_notes')
+            .insert(insertPayload)
+            .select()
+            .single();
+      }
+
+      // 3. If completeAppointment is requested and appointment is confirmed, mark as completed
+      if (completeAppointment && aptStatus != 'completed') {
+        await updateAppointmentStatus(
+          appointmentId: note.appointmentId,
+          status: DoctorAppointmentStatus.completed,
         );
-
-        if (response is Map) {
-          return DoctorConsultationNoteModel.fromMap(
-              Map<String, dynamic>.from(response));
-        }
-
-        // Fallback query if RPC returns single row
-        final fetched = await getConsultationNoteForAppointment(note.appointmentId);
-        if (fetched != null) return fetched;
       }
-
-      // Standard Upsert operation
-      final payload = <String, dynamic>{
-        'appointment_id': note.appointmentId,
-        'doctor_id': docId,
-        'patient_id': note.patientId,
-        'diagnosis': note.diagnosis?.trim(),
-        'notes': note.notes?.trim(),
-        'prescriptions': note.prescriptions.map((p) => p.toMap()).toList(),
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-
-      if (note.id.isNotEmpty) {
-        payload['id'] = note.id;
-      }
-
-      final response = await _client
-          .from('doctor_consultation_notes')
-          .upsert(payload, onConflict: 'appointment_id')
-          .select()
-          .single();
 
       return DoctorConsultationNoteModel.fromMap(
-          Map<String, dynamic>.from(response as Map));
+          Map<String, dynamic>.from(response));
     } catch (e) {
-      debugPrint('DoctorRepository: Error saving consultation note: $e');
+      if (e is String) rethrow;
       throw _getFriendlyErrorMessage(
           e, 'Unable to save consultation record. Please verify appointment status.');
     }
@@ -1120,6 +1167,9 @@ class DoctorRepository {
       }
       if (error.code == '23503' || msg.contains('foreign key')) {
         return 'Invalid reference. Please ensure associated clinic or doctor profile exists.';
+      }
+      if (error.message.isNotEmpty && !msg.contains('syntax error') && !msg.contains('internal')) {
+        return error.message;
       }
     }
 

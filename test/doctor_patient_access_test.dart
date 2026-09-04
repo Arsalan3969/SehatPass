@@ -98,7 +98,7 @@ void main() {
       final model = DoctorPatientModel.fromMap(sparseMap);
 
       expect(model.id, 'patient-uuid-sparse');
-      expect(model.name, 'Patient');
+      expect(model.name, 'Name not provided');
       expect(model.phone, 'Not provided');
       expect(model.gender, 'Not specified');
       expect(model.bloodGroup, 'Not specified');

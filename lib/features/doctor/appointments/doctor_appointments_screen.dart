@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/doctor_repository.dart';
 import '../models/doctor_appointment_model.dart';
 import '../patients/doctor_patient_detail_screen.dart';
 import 'doctor_appointment_details_screen.dart';
@@ -91,6 +92,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       if (widget.onAcceptAppointment != null) {
         await widget.onAcceptAppointment!(appointment);
       } else {
+        await DoctorRepository.instance.acceptAppointment(appointment.id);
         appointment.status = DoctorAppointmentStatus.confirmed;
       }
 
@@ -173,6 +175,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                 if (widget.onDeclineAppointment != null) {
                   await widget.onDeclineAppointment!(appointment);
                 } else {
+                  await DoctorRepository.instance.declineAppointment(appointment.id);
                   appointment.status = DoctorAppointmentStatus.cancelled;
                 }
 
@@ -583,7 +586,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                             ? '${apt.patientAge} yrs • ${apt.patientGender}'
                             : (apt.referenceNo.isNotEmpty
                                 ? 'Ref: ${apt.referenceNo}'
-                                : 'Patient'),
+                                : ''),
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textTertiary,
                         ),

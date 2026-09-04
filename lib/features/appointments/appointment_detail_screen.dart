@@ -426,12 +426,16 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Prescription',
-                                    style: AppTextStyles.labelMedium.copyWith(
-                                      fontWeight: FontWeight.w700,
+                                  Expanded(
+                                    child: Text(
+                                      'Prescription',
+                                      style: AppTextStyles.labelMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 2),
@@ -566,18 +570,27 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 13),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label,
-                style: AppTextStyles.bodyMedium.copyWith(fontSize: 13)),
+            flex: 2,
+            child: Text(
+              label,
+              style: AppTextStyles.bodyMedium.copyWith(fontSize: 13),
+            ),
           ),
-          Text(
-            value,
-            style: AppTextStyles.labelLarge.copyWith(
-              color: valueColor ?? AppColors.textPrimary,
-              fontSize: 13,
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTextStyles.labelLarge.copyWith(
+                color: valueColor ?? AppColors.textPrimary,
+                fontSize: 13,
+              ),
             ),
           ),
         ],

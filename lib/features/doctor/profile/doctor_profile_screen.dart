@@ -151,7 +151,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     final rawName = profile.fullName.trim();
     final String displayName;
     if (rawName.isEmpty) {
-      displayName = 'Doctor';
+      displayName = 'Name not provided';
     } else if (rawName.toLowerCase().startsWith('dr.') ||
         rawName.toLowerCase().startsWith('dr ')) {
       displayName = rawName;

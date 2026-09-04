@@ -72,9 +72,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
 
     final targetId = _targetPatientId;
     if (targetId.isNotEmpty) {
-      if (_patient == null) {
-        _loadPatient(targetId);
-      }
+      _loadPatient(targetId);
       if (widget.initialMedicines == null) {
         _loadMedicines(targetId);
       }
@@ -112,18 +110,22 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
   }
 
   Future<void> _loadPatient(String patientId) async {
-    setState(() {
-      _isLoadingPatient = true;
-      _patientError = null;
-    });
+    if (_patient == null) {
+      setState(() {
+        _isLoadingPatient = true;
+        _patientError = null;
+      });
+    }
 
     try {
       final fetched = await _repository.getDoctorPatientDetail(patientId);
       if (mounted) {
         setState(() {
-          _patient = fetched;
+          if (fetched != null) {
+            _patient = fetched;
+          }
           _isLoadingPatient = false;
-          if (fetched == null) {
+          if (_patient == null && fetched == null) {
             _patientError =
                 'Patient record not found or unauthorized. You can only view patients with confirmed or scheduled appointments.';
           }
@@ -132,7 +134,9 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _patientError = e.toString();
+          if (_patient == null) {
+            _patientError = e.toString();
+          }
           _isLoadingPatient = false;
         });
       }
@@ -661,7 +665,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'No past consultation notes recorded for this patient.',
+                'No consultation history yet.',
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
               ),
             ),

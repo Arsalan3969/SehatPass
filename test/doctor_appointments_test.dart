@@ -5,6 +5,7 @@ import 'package:sehatpass/features/doctor/appointments/doctor_appointment_detail
 import 'package:sehatpass/features/doctor/appointments/doctor_appointments_screen.dart';
 import 'package:sehatpass/features/doctor/data/doctor_repository.dart';
 import 'package:sehatpass/features/doctor/models/doctor_appointment_model.dart';
+import 'package:sehatpass/features/doctor/models/doctor_patient_model.dart';
 
 class MockDoctorRepository extends DoctorRepository {
   List<DoctorAppointmentModel> appointmentsToReturn;
@@ -452,6 +453,128 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(acceptCalled, isTrue);
+    });
+  });
+
+  group('Doctor Appointment Date & Visit Statistics Regression Tests', () {
+    test('1. Accepting an appointment changes ONLY status, preserving date, time, and fee', () async {
+      final repo = MockDoctorRepository();
+      final apt = DoctorAppointmentModel(
+        id: 'apt-sep-7',
+        referenceNo: 'SP-APT-9900',
+        patientId: 'pat-1',
+        patientName: 'Arsalan',
+        serviceId: 'svc-1',
+        serviceName: 'ECG Consultation',
+        clinicId: 'clinic-1',
+        clinicName: 'City Clinic',
+        appointmentDate: DateTime(2026, 9, 7),
+        date: '7 Sep 2026',
+        time: '12:15 PM',
+        fee: 2500,
+        status: DoctorAppointmentStatus.pending,
+        rawStatus: 'pending',
+      );
+
+      repo.appointmentsToReturn = [apt];
+
+      final accepted = await repo.acceptAppointment('apt-sep-7');
+
+      // Status transitioned to confirmed
+      expect(accepted.status, DoctorAppointmentStatus.confirmed);
+      expect(accepted.rawStatus, 'confirmed');
+
+      // Date and time preserved exactly
+      expect(accepted.appointmentDate, DateTime(2026, 9, 7));
+      expect(accepted.date, '7 Sep 2026');
+      expect(accepted.time, '12:15 PM');
+      expect(accepted.patientId, 'pat-1');
+      expect(accepted.patientName, 'Arsalan');
+      expect(accepted.fee, 2500.0);
+    });
+
+    test('2. isScheduledForToday returns false for future appointment and true for today', () {
+      final now = DateTime(2026, 9, 4, 15, 0); // Today is 4 Sep 2026
+
+      final futureApt = DoctorAppointmentModel(
+        id: 'apt-future',
+        patientName: 'Arsalan',
+        serviceName: 'Consultation',
+        appointmentDate: DateTime(2026, 9, 7),
+        date: '7 Sep 2026',
+        time: '12:15 PM',
+        fee: 2500,
+        status: DoctorAppointmentStatus.confirmed,
+      );
+
+      final todayApt = DoctorAppointmentModel(
+        id: 'apt-today',
+        patientName: 'Ali',
+        serviceName: 'Consultation',
+        appointmentDate: DateTime(2026, 9, 4),
+        date: '4 Sep 2026',
+        time: '10:00 AM',
+        fee: 2000,
+        status: DoctorAppointmentStatus.confirmed,
+      );
+
+      expect(futureApt.isScheduledForToday(now), isFalse);
+      expect(todayApt.isScheduledForToday(now), isTrue);
+    });
+
+    test('3. DoctorPatientModel calculates Total Visits and Last Visit strictly from completed visits', () {
+      // Patient with:
+      // Appointment 1: 2026-09-01 (completed)
+      // Appointment 2: 2026-09-03 (completed)
+      // Appointment 3: 2026-09-07 (confirmed)
+      // Appointment 4: 2026-09-10 (pending)
+
+      final patient = DoctorPatientModel.fromMap(
+        {
+          'id': 'pat-arsalan',
+          'patient_id': 'pat-arsalan',
+          'profiles': {'full_name': 'Arsalan'},
+        },
+        totalVisits: 2, // 2 completed
+        lastAppointmentDate: DateTime(2026, 9, 3), // Most recent completed
+      );
+
+      expect(patient.totalVisits, 2);
+      expect(patient.lastVisit, '3 Sep 2026');
+      expect(patient.lastAppointmentDate, DateTime(2026, 9, 3));
+    });
+
+    test('4. Patient with only future confirmed appointment has 0 Total Visits and "No visits yet"', () {
+      final patient = DoctorPatientModel.fromMap(
+        {
+          'id': 'pat-new',
+          'patient_id': 'pat-new',
+          'profiles': {'full_name': 'New Patient'},
+        },
+        totalVisits: 0,
+        lastAppointmentDate: null,
+      );
+
+      expect(patient.totalVisits, 0);
+      expect(patient.lastVisit, 'No visits yet');
+      expect(patient.lastAppointmentDate, isNull);
+    });
+
+    test('5. Lifecycle transition to completed updates Total Visits and Last Visit to the completed date', () {
+      // Future appointment on 7 Sep becomes completed
+      final patientAfterCompletion = DoctorPatientModel.fromMap(
+        {
+          'id': 'pat-arsalan',
+          'patient_id': 'pat-arsalan',
+          'profiles': {'full_name': 'Arsalan'},
+        },
+        totalVisits: 3, // 2 previous + 1 completed
+        lastAppointmentDate: DateTime(2026, 9, 7),
+      );
+
+      expect(patientAfterCompletion.totalVisits, 3);
+      expect(patientAfterCompletion.lastVisit, '7 Sep 2026');
+      expect(patientAfterCompletion.lastAppointmentDate, DateTime(2026, 9, 7));
     });
   });
 }

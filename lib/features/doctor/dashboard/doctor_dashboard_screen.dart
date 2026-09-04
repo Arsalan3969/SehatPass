@@ -47,7 +47,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       .toList();
 
   List<DoctorAppointmentModel> get _todaySchedule => widget.appointments
-      .where((a) => a.status == DoctorAppointmentStatus.confirmed)
+      .where((a) =>
+          a.status == DoctorAppointmentStatus.confirmed && a.isToday)
       .toList();
 
   Future<void> _handleAccept(DoctorAppointmentModel appointment) async {
@@ -58,6 +59,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       if (widget.onAcceptAppointment != null) {
         await widget.onAcceptAppointment!(appointment);
       } else {
+        await (widget.repository ?? DoctorRepository.instance).acceptAppointment(appointment.id);
         appointment.status = DoctorAppointmentStatus.confirmed;
       }
 
@@ -139,6 +141,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 if (widget.onDeclineAppointment != null) {
                   await widget.onDeclineAppointment!(appointment);
                 } else {
+                  await (widget.repository ?? DoctorRepository.instance).declineAppointment(appointment.id);
                   appointment.status = DoctorAppointmentStatus.cancelled;
                 }
 
@@ -335,7 +338,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     final rawName = widget.data.profile.fullName.trim();
     final String doctorName;
     if (rawName.isEmpty) {
-      doctorName = 'Doctor';
+      doctorName = 'Name not provided';
     } else if (rawName.toLowerCase().startsWith('dr.') ||
         rawName.toLowerCase().startsWith('dr ')) {
       doctorName = rawName;
