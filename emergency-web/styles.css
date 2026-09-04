@@ -1,0 +1,569 @@
+/* ==============================================================================
+   SehatPass: Standalone Emergency Medical Profile Stylesheet
+   Mobile-first, responsive, accessible, zero external framework dependencies
+   ============================================================================== */
+
+:root {
+  --primary-red: #DC2626;
+  --dark-red: #991B1B;
+  --light-red: #FEE2E2;
+  --border-red: #FECACA;
+  --deep-bg: #0B1120;
+  --card-bg: #FFFFFF;
+  --surface-bg: #F8FAFC;
+  --border-subtle: #E2E8F0;
+  --border-divider: #EEF2F6;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-light: #94A3B8;
+  --call-blue: #2563EB;
+  --call-blue-dark: #1D4ED8;
+  --allergy-bg: #FEF2F2;
+  --allergy-border: #FECACA;
+  --allergy-text: #991B1B;
+  --condition-bg: #FFFBEB;
+  --condition-border: #FDE68A;
+  --condition-text: #92400E;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--deep-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px 12px 32px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Container Layout ────────────────────────────────────────────── */
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.45), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.emergency-header {
+  background: linear-gradient(135deg, var(--primary-red) 0%, var(--dark-red) 100%);
+  color: #FFFFFF;
+  padding: 24px 20px;
+  text-align: center;
+  position: relative;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  display: inline-block;
+  animation: pulse-ring 2s infinite ease-in-out;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #FFFFFF; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.header-title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.header-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.92;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Main Content Area ───────────────────────────────────────────── */
+.main-content {
+  padding: 18px 16px;
+  flex: 1;
+}
+
+.state-container {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.state-container.active {
+  display: flex;
+}
+
+/* ── Cards Common ────────────────────────────────────────────────── */
+.card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-divider);
+  padding-bottom: 6px;
+}
+
+/* ── 1. Hero Identity Card ───────────────────────────────────────── */
+.hero-flex {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-name {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.patient-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-weight: 500;
+}
+
+.meta-dot {
+  color: var(--border-subtle);
+}
+
+.blood-group-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--light-red);
+  border: 2px solid #F87171;
+  color: var(--dark-red);
+  border-radius: var(--radius-md);
+  min-width: 62px;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.blood-value {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.blood-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+/* ── 2. Emergency Contact Card ───────────────────────────────────── */
+.contact-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.contact-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1E3A8A;
+  word-break: break-word;
+}
+
+.contact-rel {
+  font-size: 12px;
+  color: #3B82F6;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.contact-phone-display {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.btn-call-emergency {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--call-blue);
+  color: #FFFFFF;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-call-emergency:hover {
+  background: var(--call-blue-dark);
+}
+
+.btn-call-emergency:active {
+  transform: scale(0.96);
+}
+
+/* ── 3. Critical Alerts Card ─────────────────────────────────────── */
+.alert-box {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.alert-box:last-child {
+  margin-bottom: 0;
+}
+
+.alert-box.allergy-box {
+  background: var(--allergy-bg);
+  border: 1px solid var(--allergy-border);
+}
+
+.alert-box.condition-box {
+  background: var(--condition-bg);
+  border: 1px solid var(--condition-border);
+}
+
+.alert-box-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.allergy-box .alert-box-label { color: #B91C1C; }
+.condition-box .alert-box-label { color: #B45309; }
+
+.alert-box-val {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.allergy-box .alert-box-val { color: #7F1D1D; }
+.condition-box .alert-box-val { color: #78350F; }
+
+/* ── 4. Medications Card ─────────────────────────────────────────── */
+.medicines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.med-item {
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.med-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.med-instructions {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.empty-notice {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+/* ── 5. Security & Verification Card ─────────────────────────────── */
+.security-card {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.security-text {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.verification-timestamp {
+  font-size: 10px;
+  color: var(--text-light);
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* ── 6. Error & Revocation State ─────────────────────────────────── */
+.error-card {
+  padding: 28px 12px;
+  text-align: center;
+}
+
+.error-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--light-red);
+  color: var(--primary-red);
+  border: 1px solid var(--border-red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+
+.error-icon.amber {
+  background: #FEF3C7;
+  color: #D97706;
+  border-color: #FDE68A;
+}
+
+.error-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.error-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.responder-notice-box {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: left;
+}
+
+.notice-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.notice-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.helpline-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-helpline {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #DC2626;
+  color: #FFFFFF;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+.btn-helpline-alt {
+  background: #0F172A;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2);
+}
+
+/* ── 7. Skeleton Loading State ───────────────────────────────────── */
+.skeleton-card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-line { height: 16px; width: 100%; }
+.skeleton-title { height: 24px; width: 60%; }
+.skeleton-meta { height: 14px; width: 40%; }
+.skeleton-block { height: 48px; width: 100%; }
+
+.loading-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 16px 0 8px;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--primary-red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── App Footer ──────────────────────────────────────────────────── */
+.app-footer {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+  padding: 0 16px 16px;
+}
+
+/* ── Responsiveness for 360px and smaller / larger ───────────────── */
+@media (max-width: 360px) {
+  body {
+    padding: 8px 6px 20px;
+  }
+  .header-title {
+    font-size: 20px;
+  }
+  .patient-name {
+    font-size: 18px;
+  }
+  .blood-value {
+    font-size: 19px;
+  }
+  .btn-call-emergency {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .helpline-row {
+    flex-direction: column;
+  }
+}

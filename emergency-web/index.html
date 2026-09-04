@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="description" content="Official SehatPass Emergency Medical Profile for authorized first responders and emergency personnel.">
+  <meta name="theme-color" content="#DC2626">
+  <title>SehatPass - Emergency Medical Profile</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Emergency Header -->
+    <header class="emergency-header" role="banner">
+      <div class="header-badge" id="header-badge">
+        <span class="pulse-indicator" aria-hidden="true"></span>
+        <span id="badge-text">Emergency Medical Access</span>
+      </div>
+      <h1 class="header-title">SEHATPASS</h1>
+      <p class="header-subtitle" id="header-subtitle">Emergency Medical Profile</p>
+    </header>
+
+    <!-- Main Dynamic Content Wrapper -->
+    <main class="main-content" role="main">
+
+      <!-- 1. LOADING STATE -->
+      <section id="loading-state" class="state-container active" aria-live="polite" aria-label="Loading profile">
+        <div class="skeleton-card">
+          <div class="skeleton-pulse skeleton-line skeleton-title"></div>
+          <div class="skeleton-pulse skeleton-line skeleton-meta"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-pulse skeleton-line skeleton-block"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-pulse skeleton-line skeleton-block"></div>
+        </div>
+        <div class="loading-label">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span>Authenticating emergency token...</span>
+        </div>
+      </section>
+
+      <!-- 2. ERROR / REVOKED / INVALID STATE -->
+      <section id="error-state" class="state-container" aria-live="assertive" aria-label="Emergency access status">
+        <div class="error-card">
+          <div class="error-icon" id="error-icon" aria-hidden="true">🚨</div>
+          <h2 class="error-title" id="error-title">Emergency Access Unavailable</h2>
+          <p class="error-description" id="error-desc">This emergency QR token is invalid, expired, or has been revoked.</p>
+
+          <div class="responder-notice-box">
+            <h3 class="notice-title">First Responder Guidance</h3>
+            <p class="notice-text">
+              If the individual requires urgent medical care, do not delay for digital records. Call local emergency medical services immediately:
+            </p>
+            <div class="helpline-row">
+              <a href="tel:1122" class="btn-helpline" aria-label="Call Rescue 1122">
+                <span aria-hidden="true">🚑</span> Rescue 1122
+              </a>
+              <a href="tel:911" class="btn-helpline btn-helpline-alt" aria-label="Call Emergency 911">
+                <span aria-hidden="true">🚨</span> Emergency 911
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. PROFILE DATA STATE -->
+      <section id="profile-state" class="state-container" aria-live="polite" aria-label="Patient emergency profile">
+        
+        <!-- Patient Hero Card -->
+        <article class="card hero-card" id="hero-card">
+          <div class="section-label">👤 Patient Identification</div>
+          <div class="hero-flex">
+            <div class="hero-info">
+              <h2 class="patient-name" id="patient-name">Patient Name</h2>
+              <div class="patient-meta" id="patient-meta">
+                <span id="patient-gender">Gender</span>
+                <span class="meta-dot" id="patient-meta-dot" aria-hidden="true">•</span>
+                <span id="patient-dob">DOB</span>
+              </div>
+            </div>
+            <div class="blood-group-badge" id="blood-group-badge" aria-label="Blood Group">
+              <span class="blood-value" id="blood-group-val">--</span>
+              <span class="blood-label">Blood</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Emergency Contact Card -->
+        <article class="card contact-card" id="contact-card">
+          <div class="section-label">📞 Emergency Contact</div>
+          <div class="contact-flex">
+            <div class="contact-details">
+              <h3 class="contact-name" id="contact-name">Primary Contact</h3>
+              <p class="contact-rel" id="contact-rel">Relationship</p>
+              <p class="contact-phone-display" id="contact-phone-display"></p>
+            </div>
+            <div class="contact-action" id="contact-action">
+              <a href="#" class="btn-call-emergency" id="btn-call-emergency" aria-label="Call Emergency Contact">
+                <span aria-hidden="true">📞</span> Call
+              </a>
+            </div>
+          </div>
+          <div class="empty-notice" id="no-contact-notice" style="display: none;">
+            No emergency phone number recorded.
+          </div>
+        </article>
+
+        <!-- Medical Alerts Card -->
+        <article class="card alerts-card" id="alerts-card">
+          <div class="section-label">⚠️ Critical Medical Alerts</div>
+          
+          <div class="alert-box allergy-box">
+            <div class="alert-box-label">Known Allergies</div>
+            <div class="alert-box-val" id="allergies-val">None reported</div>
+          </div>
+
+          <div class="alert-box condition-box">
+            <div class="alert-box-label">Medical Conditions / Chronic Diseases</div>
+            <div class="alert-box-val" id="conditions-val">None reported</div>
+          </div>
+        </article>
+
+        <!-- Important Medications Card -->
+        <article class="card medicines-card" id="medicines-card">
+          <div class="section-label">💊 Important Medications</div>
+          <div class="medicines-list" id="medicines-list">
+            <!-- Dynamically populated via safe DOM creation in app.js -->
+          </div>
+          <div class="empty-notice" id="no-medicines-notice" style="display: none;">
+            No active medications registered for emergency display.
+          </div>
+        </article>
+
+        <!-- Security and Authorization Notice -->
+        <footer class="security-card" role="contentinfo">
+          <div class="security-badge">
+            <span aria-hidden="true">🔒</span> Authenticated Emergency Access
+          </div>
+          <p class="security-text">
+            This profile is authorized by the patient through <strong>SehatPass</strong> and accessed via a unique single-purpose emergency token. No private account credentials, AI chats, or clinical consultation notes are accessible.
+          </p>
+          <div class="verification-timestamp" id="verification-timestamp"></div>
+        </footer>
+
+      </section>
+
+    </main>
+
+    <!-- Bottom Brand Watermark -->
+    <footer class="app-footer">
+      <span>SEHATPASS SECURE EMERGENCY NETWORK</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

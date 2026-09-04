@@ -48,6 +48,23 @@ class EmergencyRepository {
   /// Constructs the full secure HTTPS public web profile URL for emergency responders.
   String buildEmergencyAccessUrl(String token) {
     if (token.trim().isEmpty) return '';
+
+    // 1. Check for dedicated deployed emergency web app domain (e.g. Vercel/Netlify/custom domain)
+    String? webUrl;
+    try {
+      webUrl = dotenv.isInitialized ? dotenv.env['EMERGENCY_WEB_URL'] : null;
+    } catch (_) {
+      webUrl = null;
+    }
+
+    if (webUrl != null && webUrl.trim().isNotEmpty) {
+      final cleanWeb = webUrl.trim().endsWith('/')
+          ? webUrl.trim().substring(0, webUrl.trim().length - 1)
+          : webUrl.trim();
+      return '$cleanWeb/?token=${token.trim()}';
+    }
+
+    // 2. Default fallback to Supabase Edge Function
     String? baseUrl;
     try {
       baseUrl = dotenv.isInitialized ? dotenv.env['SUPABASE_URL'] : null;
