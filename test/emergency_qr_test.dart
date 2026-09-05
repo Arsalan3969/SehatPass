@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sehatpass/core/theme/app_theme.dart';
@@ -195,6 +196,47 @@ void main() {
       expect(uuid.length, 36);
       expect(uuid[14], '4'); // version 4
       expect(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(uuid), isTrue);
+    });
+  });
+
+  group('EmergencyRepository URL Building Tests', () {
+    test('buildEmergencyAccessUrl uses EMERGENCY_WEB_URL when configured', () async {
+      await dotenv.load(mergeWith: {
+        'SUPABASE_URL': 'https://vnavceiizdjekbmtzpsn.supabase.co',
+        'EMERGENCY_WEB_URL': 'https://sehat-pass.vercel.app',
+      });
+
+      final repo = EmergencyRepository.instance;
+      final url = repo.buildEmergencyAccessUrl('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+      expect(url, 'https://sehat-pass.vercel.app/?token=a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+      expect(url.contains('supabase.co/functions/v1/emergency-access'), isFalse);
+    });
+
+    test('buildEmergencyAccessUrl handles trailing slash in EMERGENCY_WEB_URL cleanly', () async {
+      await dotenv.load(mergeWith: {
+        'EMERGENCY_WEB_URL': 'https://sehat-pass.vercel.app/',
+      });
+
+      final repo = EmergencyRepository.instance;
+      final url = repo.buildEmergencyAccessUrl('test-uuid-1234');
+      expect(url, 'https://sehat-pass.vercel.app/?token=test-uuid-1234');
+    });
+
+    test('buildEmergencyAccessUrl falls back to Supabase Edge Function when EMERGENCY_WEB_URL is absent', () async {
+      await dotenv.load(mergeWith: {
+        'SUPABASE_URL': 'https://vnavceiizdjekbmtzpsn.supabase.co',
+        'EMERGENCY_WEB_URL': '',
+      });
+
+      final repo = EmergencyRepository.instance;
+      final url = repo.buildEmergencyAccessUrl('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+      expect(url, 'https://vnavceiizdjekbmtzpsn.supabase.co/functions/v1/emergency-access?token=a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+    });
+
+    test('buildEmergencyAccessUrl returns empty string for empty token', () {
+      final repo = EmergencyRepository.instance;
+      expect(repo.buildEmergencyAccessUrl(''), '');
+      expect(repo.buildEmergencyAccessUrl('   '), '');
     });
   });
 

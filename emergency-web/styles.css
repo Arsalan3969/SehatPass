@@ -1,168 +1,338 @@
 /* ==============================================================================
    SehatPass: Standalone Emergency Medical Profile Stylesheet
+   Matches Official SehatPass Flutter App Design System (lib/core/theme/)
    Mobile-first, responsive, accessible, zero external framework dependencies
    ============================================================================== */
 
 :root {
-  --primary-red: #DC2626;
-  --dark-red: #991B1B;
-  --light-red: #FEE2E2;
-  --border-red: #FECACA;
-  --deep-bg: #0B1120;
-  --card-bg: #FFFFFF;
-  --surface-bg: #F8FAFC;
-  --border-subtle: #E2E8F0;
-  --border-divider: #EEF2F6;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --text-light: #94A3B8;
-  --call-blue: #2563EB;
-  --call-blue-dark: #1D4ED8;
-  --allergy-bg: #FEF2F2;
-  --allergy-border: #FECACA;
-  --allergy-text: #991B1B;
-  --condition-bg: #FFFBEB;
-  --condition-border: #FDE68A;
-  --condition-text: #92400E;
+  /* Official SehatPass Palette (lib/core/theme/app_colors.dart) */
+  --primary: #2E7D5E;
+  --primary-light: #4CAF82;
+  --primary-surface: #E8F5EF;
+
+  /* Backgrounds & Surfaces */
+  --background: #F8F9FA;
+  --surface: #FFFFFF;
+  --surface-secondary: #F2F4F6;
+
+  /* Text Colors */
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+
+  /* Emergency / Critical Elements */
+  --emergency: #DC2626;
+  --emergency-surface: #FEF2F2;
+  --emergency-border: #FECACA;
+  --emergency-dark: #991B1B;
+  --emergency-icon-bg: #FEE2E2;
+
+  /* Condition / Warning Elements */
+  --warning-surface: #FFFBEB;
+  --warning-border: #FDE68A;
+  --warning-text: #92400E;
+  --warning-icon: #D97706;
+
+  /* Borders & Dividers */
+  --border: #E5E7EB;
+  --divider: #F3F4F6;
+  --shadow-color: rgba(0, 0, 0, 0.04);
+
+  /* Border Radii (matching Flutter AppTheme & AppCard) */
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 24px;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Typography Stack */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+/* ── Reset & Base Styles ─────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  font-family: var(--font-family);
-  background-color: var(--deep-bg);
+  font-family: var(--font-sans);
+  background-color: var(--background);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 16px 12px 32px;
+  padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Container Layout ────────────────────────────────────────────── */
+/* ── Outer App Container ─────────────────────────────────────────── */
 .app-container {
   width: 100%;
   max-width: 480px;
-  background: var(--card-bg);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.45), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  min-height: 100vh;
+  background-color: var(--background);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+@media (min-width: 481px) {
+  body {
+    padding: 24px 16px 40px;
+    background-color: #EEF1F4;
+  }
+
+  .app-container {
+    min-height: auto;
+    background-color: var(--background);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+}
+
+/* ── Top SehatPass Header Bar ────────────────────────────────────── */
+.emergency-header {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-icon-box {
+  width: 36px;
+  height: 36px;
+  background-color: var(--primary);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(46, 125, 94, 0.25);
+}
+
+.brand-icon-box svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.brand-text-col {
   display: flex;
   flex-direction: column;
 }
 
-/* ── Header ──────────────────────────────────────────────────────── */
-.emergency-header {
-  background: linear-gradient(135deg, var(--primary-red) 0%, var(--dark-red) 100%);
-  color: #FFFFFF;
-  padding: 24px 20px;
-  text-align: center;
-  position: relative;
-}
-
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  padding: 4px 14px;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.pulse-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #FFFFFF;
-  display: inline-block;
-  animation: pulse-ring 2s infinite ease-in-out;
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #FFFFFF; }
-  100% { transform: scale(0.9); opacity: 0.8; }
-}
-
 .header-title {
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.3px;
+  line-height: 1.2;
 }
 
 .header-subtitle {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+/* Status Chip matching Flutter AppBar Public View badge */
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--emergency-surface);
+  border: 1px solid var(--emergency-border);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
   font-weight: 600;
-  opacity: 0.92;
-  margin-top: 4px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--emergency);
+  flex-shrink: 0;
+}
+
+.pulse-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--emergency);
+  display: inline-block;
+  animation: pulse-dot 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  50% { transform: scale(1.35); opacity: 1; box-shadow: 0 0 6px var(--emergency); }
+  100% { transform: scale(0.9); opacity: 0.9; }
 }
 
 /* ── Main Content Area ───────────────────────────────────────────── */
 .main-content {
-  padding: 18px 16px;
+  padding: 16px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .state-container {
   display: none;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .state-container.active {
   display: flex;
 }
 
-/* ── Cards Common ────────────────────────────────────────────────── */
+/* ── Flutter AppCard Common ──────────────────────────────────────── */
 .card {
-  background: var(--surface-bg);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  position: relative;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.card-header-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background-color: var(--primary-surface);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-header-icon.emergency-icon-theme {
+  background-color: var(--emergency-icon-bg);
+  color: var(--emergency);
+}
+
+.card-header-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .section-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border-divider);
-  padding-bottom: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
 }
 
-/* ── 1. Hero Identity Card ───────────────────────────────────────── */
-.hero-flex {
+/* ── 1. Emergency Banner Card (Matches EmergencyInfoPreviewScreen) ─ */
+.emergency-banner-card {
+  background-color: var(--emergency-surface);
+  border: 1px solid var(--emergency-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.05);
+}
+
+.banner-top-row {
   display: flex;
   align-items: flex-start;
+  gap: 12px;
+}
+
+.banner-icon-container {
+  width: 44px;
+  height: 44px;
+  background-color: var(--emergency-icon-bg);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--emergency);
+  flex-shrink: 0;
+}
+
+.banner-icon-container svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.banner-title-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--emergency);
+  line-height: 1.25;
+}
+
+.banner-subheading {
+  font-size: 12px;
+  color: var(--emergency-dark);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.banner-patient-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--emergency-border);
+}
+
+.patient-label-caption {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--emergency-dark);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.hero-flex {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 4px;
 }
 
 .hero-info {
@@ -171,8 +341,8 @@ body {
 }
 
 .patient-name {
-  font-size: 21px;
-  font-weight: 800;
+  font-size: 19px;
+  font-weight: 700;
   color: var(--text-primary);
   line-height: 1.25;
   word-break: break-word;
@@ -181,7 +351,7 @@ body {
 .patient-meta {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-top: 5px;
+  margin-top: 4px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -190,49 +360,164 @@ body {
 }
 
 .meta-dot {
-  color: var(--border-subtle);
+  color: var(--text-tertiary);
 }
 
+/* ── 2. Blood Group Highlight Badge ──────────────────────────────── */
 .blood-group-badge {
-  flex-shrink: 0;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--light-red);
-  border: 2px solid #F87171;
-  color: var(--dark-red);
-  border-radius: var(--radius-md);
-  min-width: 62px;
-  padding: 6px 10px;
+  background-color: var(--emergency-surface);
+  border: 1px solid var(--emergency-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  min-width: 54px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .blood-value {
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--emergency);
+  line-height: 1.1;
 }
 
 .blood-label {
   font-size: 9px;
   font-weight: 700;
+  color: var(--emergency-dark);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-  opacity: 0.85;
+  letter-spacing: 0.4px;
 }
 
-/* ── 2. Emergency Contact Card ───────────────────────────────────── */
+/* ── 3. Medical Details List ─────────────────────────────────────── */
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-row:first-child {
+  padding-top: 0;
+}
+
+.info-label-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.info-row-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-row-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.info-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.info-value-container {
+  flex: 1;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Alerts box styling for detailed conditions/allergies */
+.alert-box {
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.alert-box.allergy-box {
+  background-color: var(--emergency-surface);
+  border: 1px solid var(--emergency-border);
+}
+
+.alert-box.condition-box {
+  background-color: var(--warning-surface);
+  border: 1px solid var(--warning-border);
+}
+
+.alert-box-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 3px;
+}
+
+.allergy-box .alert-box-label {
+  color: var(--emergency-dark);
+}
+
+.condition-box .alert-box-label {
+  color: var(--warning-icon);
+}
+
+.alert-box-val {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.allergy-box .alert-box-val {
+  color: #7F1D1D;
+}
+
+.condition-box .alert-box-val {
+  color: var(--warning-text);
+}
+
+/* ── 4. Emergency Contact Card ───────────────────────────────────── */
 .contact-flex {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  background: #EFF6FF;
-  border: 1px solid #BFDBFE;
+}
+
+.contact-avatar-box {
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
-  padding: 12px 14px;
+  background-color: var(--primary-surface);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.contact-avatar-box svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
 }
 
 .contact-details {
@@ -242,91 +527,64 @@ body {
 
 .contact-name {
   font-size: 15px;
-  font-weight: 700;
-  color: #1E3A8A;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
   word-break: break-word;
 }
 
 .contact-rel {
   font-size: 12px;
-  color: #3B82F6;
-  font-weight: 600;
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .contact-phone-display {
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
   margin-top: 2px;
-  font-family: monospace;
+  font-family: var(--font-mono);
+}
+
+.contact-action-wrapper {
+  margin-top: 14px;
 }
 
 .btn-call-emergency {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--call-blue);
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  background-color: var(--emergency);
   color: #FFFFFF;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
   border-radius: 10px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+  border: none;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
   transition: background-color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+
+.btn-call-emergency svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 
 .btn-call-emergency:hover {
-  background: var(--call-blue-dark);
+  background-color: #B91C1C;
 }
 
 .btn-call-emergency:active {
-  transform: scale(0.96);
+  transform: scale(0.98);
 }
 
-/* ── 3. Critical Alerts Card ─────────────────────────────────────── */
-.alert-box {
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-
-.alert-box:last-child {
-  margin-bottom: 0;
-}
-
-.alert-box.allergy-box {
-  background: var(--allergy-bg);
-  border: 1px solid var(--allergy-border);
-}
-
-.alert-box.condition-box {
-  background: var(--condition-bg);
-  border: 1px solid var(--condition-border);
-}
-
-.alert-box-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 3px;
-}
-
-.allergy-box .alert-box-label { color: #B91C1C; }
-.condition-box .alert-box-label { color: #B45309; }
-
-.alert-box-val {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.allergy-box .alert-box-val { color: #7F1D1D; }
-.condition-box .alert-box-val { color: #78350F; }
-
-/* ── 4. Medications Card ─────────────────────────────────────────── */
+/* ── 5. Medications Card ─────────────────────────────────────────── */
 .medicines-list {
   display: flex;
   flex-direction: column;
@@ -334,96 +592,106 @@ body {
 }
 
 .med-item {
-  background: #FFFFFF;
-  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
+  border-left: 3px solid var(--primary);
 }
 
 .med-name {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .med-instructions {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .empty-notice {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-style: italic;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 
-/* ── 5. Security & Verification Card ─────────────────────────────── */
+/* ── 6. Security & Privacy Card ──────────────────────────────────── */
 .security-card {
-  background: #F1F5F9;
-  border: 1px solid #CBD5E1;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px 14px;
-  text-align: center;
+  padding: 14px;
+  text-align: left;
 }
 
 .security-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.security-badge svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
 }
 
 .security-text {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--text-secondary);
 }
 
 .verification-timestamp {
-  font-size: 10px;
-  color: var(--text-light);
-  margin-top: 6px;
-  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  font-family: var(--font-mono);
 }
 
-/* ── 6. Error & Revocation State ─────────────────────────────────── */
+/* ── 7. Error / Inactive States ──────────────────────────────────── */
 .error-card {
-  padding: 28px 12px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 16px;
   text-align: center;
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .error-icon {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: var(--light-red);
-  color: var(--primary-red);
-  border: 1px solid var(--border-red);
+  background-color: var(--emergency-surface);
+  color: var(--emergency);
+  border: 1px solid var(--emergency-border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  margin-bottom: 16px;
+  font-size: 26px;
+  margin-bottom: 14px;
 }
 
 .error-icon.amber {
-  background: #FEF3C7;
-  color: #D97706;
-  border-color: #FDE68A;
+  background-color: var(--warning-surface);
+  color: var(--warning-icon);
+  border-color: var(--warning-border);
 }
 
 .error-title {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 8px;
+  letter-spacing: -0.2px;
 }
 
 .error-description {
@@ -434,8 +702,8 @@ body {
 }
 
 .responder-notice-box {
-  background: var(--surface-bg);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px;
   text-align: left;
@@ -443,10 +711,10 @@ body {
 
 .notice-title {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.4px;
   margin-bottom: 4px;
 }
 
@@ -468,48 +736,54 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #DC2626;
+  background-color: var(--emergency);
   color: #FFFFFF;
   text-decoration: none;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+  transition: opacity 0.15s ease;
+}
+
+.btn-helpline:hover {
+  opacity: 0.92;
 }
 
 .btn-helpline-alt {
-  background: #0F172A;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2);
+  background-color: var(--text-primary);
+  box-shadow: 0 2px 4px rgba(26, 26, 46, 0.2);
 }
 
-/* ── 7. Skeleton Loading State ───────────────────────────────────── */
+/* ── 8. Skeleton Loading State ───────────────────────────────────── */
 .skeleton-card {
-  background: var(--surface-bg);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .skeleton-pulse {
-  background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+  background: linear-gradient(90deg, #F2F4F6 25%, #E5E7EB 50%, #F2F4F6 75%);
   background-size: 200% 100%;
-  animation: skeleton-loading 1.5s infinite;
+  animation: skeleton-shimmer 1.5s infinite;
   border-radius: 6px;
 }
 
-@keyframes skeleton-loading {
+@keyframes skeleton-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
 .skeleton-line { height: 16px; width: 100%; }
-.skeleton-title { height: 24px; width: 60%; }
-.skeleton-meta { height: 14px; width: 40%; }
-.skeleton-block { height: 48px; width: 100%; }
+.skeleton-title { height: 22px; width: 55%; }
+.skeleton-meta { height: 14px; width: 35%; }
+.skeleton-block { height: 44px; width: 100%; }
 
 .loading-label {
   display: flex;
@@ -517,16 +791,16 @@ body {
   justify-content: center;
   gap: 10px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 16px 0 8px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 14px 0 6px;
 }
 
 .loading-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--border-subtle);
-  border-top-color: var(--primary-red);
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -539,29 +813,28 @@ body {
 .app-footer {
   text-align: center;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--text-light);
-  padding: 0 16px 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding: 10px 16px 20px;
 }
 
-/* ── Responsiveness for 360px and smaller / larger ───────────────── */
-@media (max-width: 360px) {
-  body {
-    padding: 8px 6px 20px;
+/* ── Responsive Refinements ──────────────────────────────────────── */
+@media (max-width: 375px) {
+  .emergency-header {
+    padding: 12px 14px;
   }
-  .header-title {
-    font-size: 20px;
+  .main-content {
+    padding: 12px;
+  }
+  .card {
+    padding: 14px;
   }
   .patient-name {
-    font-size: 18px;
+    font-size: 17px;
   }
   .blood-value {
-    font-size: 19px;
-  }
-  .btn-call-emergency {
-    padding: 8px 12px;
-    font-size: 12px;
+    font-size: 16px;
   }
   .helpline-row {
     flex-direction: column;
