@@ -451,4 +451,37 @@ void main() {
       );
     });
   });
+
+  group('Emergency QR Medical Reports Security & Contract Tests', () {
+    test('Public emergency info payload handles medical reports array', () async {
+      final mockRepo = MockEmergencyRepository();
+      final res = await mockRepo.getPublicEmergencyInfo('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+      expect(res, isNotNull);
+      expect(res!['full_name'], 'Abdul Wahab');
+      expect(mockRepo.getPublicEmergencyInfoCallCount, 1);
+    });
+
+    test('Emergency medical reports schema contains only public safe fields', () {
+      final sampleReport = {
+        'id': 'rep-uuid-1',
+        'title': 'Complete Blood Count',
+        'lab_facility': 'Chughtai Lab',
+        'report_date': '2026-09-02',
+        'category': 'bloodTest',
+        'file_name': 'cbc.pdf',
+        'file_size_bytes': 204800,
+        'mime_type': 'application/pdf',
+        'view_url': 'https://supabase.co/storage/v1/object/sign/medical-reports/sample.pdf?token=exp_600s',
+      };
+
+      // Ensure no raw storage path, no AI summaries, no OCR text, and no patient_id
+      expect(sampleReport.containsKey('storage_file_path'), isFalse);
+      expect(sampleReport.containsKey('patient_id'), isFalse);
+      expect(sampleReport.containsKey('extracted_text'), isFalse);
+      expect(sampleReport.containsKey('summary'), isFalse);
+
+      // Verify HTTPS URL
+      expect((sampleReport['view_url'] as String).startsWith('https://'), isTrue);
+    });
+  });
 }

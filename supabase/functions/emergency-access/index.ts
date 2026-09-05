@@ -24,6 +24,30 @@ interface EmergencyContact {
   phone?: string | null;
 }
 
+interface EmergencyMedicalReport {
+  id: string;
+  title: string;
+  lab_facility?: string | null;
+  report_date?: string | null;
+  category?: string | null;
+  file_name?: string | null;
+  file_size_bytes?: number | null;
+  mime_type?: string | null;
+  view_url?: string | null;
+}
+
+interface RawMedicalReport {
+  id: string;
+  title: string;
+  lab_facility?: string | null;
+  report_date?: string | null;
+  category?: string | null;
+  storage_file_path?: string | null;
+  file_name?: string | null;
+  file_size_bytes?: number | null;
+  mime_type?: string | null;
+}
+
 interface EmergencyData {
   is_active?: boolean;
   full_name?: string | null;
@@ -34,6 +58,7 @@ interface EmergencyData {
   medical_conditions?: string | null;
   important_medicines?: EmergencyMedication[];
   emergency_contact?: EmergencyContact | null;
+  medical_reports?: EmergencyMedicalReport[];
   updated_at?: string;
 }
 
@@ -377,6 +402,7 @@ function renderHtmlProfile(data: EmergencyData): string {
   const contactPhone = escapeHtml(data.emergency_contact?.phone) || "";
 
   const medicines = data.important_medicines || [];
+  const reports = data.medical_reports || [];
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -461,6 +487,30 @@ function renderHtmlProfile(data: EmergencyData): string {
           </div>
         `).join("") : `
           <div class="empty-state-text">No active medications registered for emergency display.</div>
+        `}
+      </section>
+
+      <!-- 5. Medical Reports -->
+      <section class="card-section">
+        <div class="section-header">📄 Medical Reports</div>
+        ${reports.length > 0 ? reports.map(r => `
+          <div class="med-item" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="flex: 1; min-width: 0;">
+              <div class="med-title">${escapeHtml(r.title)}</div>
+              <div class="med-sub">
+                ${escapeHtml(r.lab_facility || "Laboratory")}${r.report_date ? ` • ${escapeHtml(r.report_date)}` : ""}
+              </div>
+            </div>
+            ${r.view_url ? `
+              <a href="${escapeHtml(r.view_url)}" target="_blank" rel="noopener noreferrer" class="btn-call" style="background: #2E7D5E; font-size: 12px; padding: 6px 12px; text-decoration: none;">
+                View
+              </a>
+            ` : `
+              <span style="font-size: 11px; color: #94A3B8;">Unavailable</span>
+            `}
+          </div>
+        `).join("") : `
+          <div class="empty-state-text">No medical reports available.</div>
         `}
       </section>
     </div>
@@ -638,7 +688,49 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const emergencyData = data as EmergencyData;
+    const rawReports = Array.isArray((data as Record<string, unknown>).medical_reports)
+      ? ((data as Record<string, unknown>).medical_reports as RawMedicalReport[])
+      : [];
+
+    const sanitizedReports: EmergencyMedicalReport[] = [];
+
+    for (const rep of rawReports) {
+      let viewUrl: string | null = null;
+      const storagePath = rep.storage_file_path?.trim();
+
+      if (storagePath) {
+        try {
+          const { data: signData, error: signError } = await client.storage
+            .from("medical-reports")
+            .createSignedUrl(storagePath, 600); // 600 seconds = 10 minutes
+
+          if (!signError && signData?.signedUrl) {
+            viewUrl = signData.signedUrl;
+          } else if (signError) {
+            console.warn(`[emergency-access] Failed to sign URL for report ${rep.id}:`, signError.message);
+          }
+        } catch (signEx) {
+          console.warn(`[emergency-access] Error creating signed URL for report ${rep.id}:`, (signEx as Error).message);
+        }
+      }
+
+      sanitizedReports.push({
+        id: rep.id,
+        title: rep.title || "Medical Report",
+        lab_facility: rep.lab_facility || null,
+        report_date: rep.report_date || null,
+        category: rep.category || "other",
+        file_name: rep.file_name || null,
+        file_size_bytes: rep.file_size_bytes || null,
+        mime_type: rep.mime_type || null,
+        view_url: viewUrl,
+      });
+    }
+
+    const emergencyData: EmergencyData = {
+      ...(data as Record<string, unknown>),
+      medical_reports: sanitizedReports,
+    };
 
     if (wantsJson) {
       return new Response(JSON.stringify({ data: emergencyData }), {

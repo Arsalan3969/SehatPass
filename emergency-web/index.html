@@ -190,6 +190,27 @@
           </div>
         </article>
 
+        <!-- Medical Reports Card -->
+        <article class="card reports-card" id="reports-card">
+          <div class="card-header-row">
+            <div class="card-header-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+              </svg>
+            </div>
+            <h3 class="section-label">Medical Reports</h3>
+          </div>
+          <div class="reports-list" id="reports-list">
+            <!-- Dynamically populated via safe DOM creation in app.js -->
+          </div>
+          <div class="empty-notice" id="no-reports-notice" style="display: none;">
+            No medical reports available.
+          </div>
+          <div class="empty-notice reports-error-notice" id="reports-error-notice" style="display: none;">
+            Medical reports are currently unavailable.
+          </div>
+        </article>
+
         <!-- Security and Authorization Notice -->
         <footer class="security-card" role="contentinfo">
           <div class="security-badge">

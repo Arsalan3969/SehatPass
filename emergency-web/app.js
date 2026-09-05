@@ -41,7 +41,37 @@
   const conditionsVal = document.getElementById("conditions-val");
   const medicinesList = document.getElementById("medicines-list");
   const noMedicinesNotice = document.getElementById("no-medicines-notice");
+  const reportsList = document.getElementById("reports-list");
+  const noReportsNotice = document.getElementById("no-reports-notice");
+  const reportsErrorNotice = document.getElementById("reports-error-notice");
   const verificationTimestamp = document.getElementById("verification-timestamp");
+
+  /**
+   * Validates that a URL is a secure HTTPS URL from trusted backend.
+   * Rejects javascript:, data:, file:, http:, and malformed strings.
+   */
+  function isValidHttpsUrl(urlString) {
+    if (!urlString || typeof urlString !== "string") return false;
+    const trimmed = urlString.trim();
+    if (!trimmed.toLowerCase().startsWith("https://")) return false;
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "https:";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Helper to format report category for display.
+   */
+  function getCategoryBadge(category) {
+    if (!category) return "";
+    const lower = category.toLowerCase();
+    if (lower === "bloodtest" || lower === "blood_test") return "Blood Test";
+    if (lower === "scan") return "Scan";
+    return "";
+  }
 
   /**
    * Switches active UI state between 'loading', 'profile', and 'error'.
@@ -199,7 +229,85 @@
       noMedicinesNotice.style.display = "block";
     }
 
-    // 5. Timestamp
+    // 5. Medical Reports (Safe DOM construction & strict HTTPS validation)
+    while (reportsList.firstChild) {
+      reportsList.removeChild(reportsList.firstChild);
+    }
+
+    const reports = data.medical_reports;
+    if (reports === undefined) {
+      // Localized error state: report retrieval failed or omitted
+      reportsList.style.display = "none";
+      noReportsNotice.style.display = "none";
+      reportsErrorNotice.style.display = "block";
+    } else if (Array.isArray(reports) && reports.length > 0) {
+      reportsErrorNotice.style.display = "none";
+      noReportsNotice.style.display = "none";
+      reportsList.style.display = "flex";
+
+      reports.forEach(function (report) {
+        const itemEl = document.createElement("div");
+        itemEl.className = "report-item";
+
+        const leftCol = document.createElement("div");
+        leftCol.className = "report-details";
+
+        const titleEl = document.createElement("div");
+        titleEl.className = "report-title";
+        titleEl.textContent = report.title || "Medical Report";
+
+        const metaEl = document.createElement("div");
+        metaEl.className = "report-meta";
+        const metaParts = [];
+        if (report.lab_facility && report.lab_facility.trim().length > 0) {
+          metaParts.push(report.lab_facility.trim());
+        }
+        if (report.report_date && report.report_date.trim().length > 0) {
+          metaParts.push(report.report_date.trim());
+        }
+        const categoryBadge = getCategoryBadge(report.category);
+        if (categoryBadge) {
+          metaParts.push(categoryBadge);
+        }
+        metaEl.textContent =
+          metaParts.length > 0 ? metaParts.join(" • ") : "Diagnostic Report";
+
+        leftCol.appendChild(titleEl);
+        leftCol.appendChild(metaEl);
+
+        const rightCol = document.createElement("div");
+        rightCol.className = "report-action";
+
+        if (isValidHttpsUrl(report.view_url)) {
+          const viewLink = document.createElement("a");
+          viewLink.className = "btn-view-report";
+          viewLink.textContent = "View Report";
+          viewLink.href = report.view_url.trim();
+          viewLink.target = "_blank";
+          viewLink.rel = "noopener noreferrer";
+          viewLink.setAttribute(
+            "aria-label",
+            "View report: " + (report.title || "Medical Report")
+          );
+          rightCol.appendChild(viewLink);
+        } else {
+          const unavailSpan = document.createElement("span");
+          unavailSpan.className = "report-unavailable-badge";
+          unavailSpan.textContent = "Unavailable";
+          rightCol.appendChild(unavailSpan);
+        }
+
+        itemEl.appendChild(leftCol);
+        itemEl.appendChild(rightCol);
+        reportsList.appendChild(itemEl);
+      });
+    } else {
+      reportsList.style.display = "none";
+      reportsErrorNotice.style.display = "none";
+      noReportsNotice.style.display = "block";
+    }
+
+    // 6. Timestamp
     if (data.updated_at) {
       try {
         const dateObj = new Date(data.updated_at);
