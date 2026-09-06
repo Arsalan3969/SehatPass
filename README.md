@@ -328,6 +328,7 @@ flutter test
 ## 👥 Authors & Contributors
 
 - **Muhammad Arsalan Bin Tariq** &mdash; [@Arsalan3969](https://github.com/Arsalan3969)
+- **Abdul Wahab** &mdash; [@abdulwahab5269](https://github.com/abdulwahab5269)
 
 ---
 
