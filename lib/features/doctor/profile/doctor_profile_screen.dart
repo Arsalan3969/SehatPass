@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/image_upload_service.dart';
 import '../../notifications/notifications_screen.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_onboarding_data.dart';
@@ -26,12 +28,15 @@ class DoctorProfileScreen extends StatefulWidget {
 class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   late final DoctorRepository _repository;
   late DoctorProfileModel _profile;
+  String? _resolvedPhotoUrl;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
     super.initState();
     _repository = widget.repository ?? DoctorRepository.instance;
     _profile = widget.data.profile;
+    _resolveAvatar();
   }
 
   @override
@@ -39,6 +44,112 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     super.didUpdateWidget(oldWidget);
     if (widget.data.profile != oldWidget.data.profile) {
       _profile = widget.data.profile;
+      _resolveAvatar();
+    }
+  }
+
+  Future<void> _resolveAvatar() async {
+    final photo = _profile.photoUrl;
+    if (photo != null && photo.isNotEmpty) {
+      final url = await ImageUploadService.instance.resolveImageUrl(photo);
+      if (mounted) {
+        setState(() => _resolvedPhotoUrl = url);
+      }
+    } else {
+      if (mounted) {
+        setState(() => _resolvedPhotoUrl = null);
+      }
+    }
+  }
+
+  Future<void> _handlePhotoUpload() async {
+    if (_isUploadingPhoto) return;
+
+    try {
+      final action = await ImageUploadService.instance.showImagePickerSheet(
+        context,
+        hasExistingImage: _profile.photoUrl != null && _profile.photoUrl!.isNotEmpty,
+      );
+
+      if (action == null || !mounted) return;
+
+      if (action == ImagePickerResultAction.remove) {
+        setState(() => _isUploadingPhoto = true);
+        final doctorId = _repository.currentUserId;
+        if (doctorId != null && doctorId.isNotEmpty) {
+          final updated = _profile.copyWith(photoUrl: '');
+          await _repository.saveDoctorProfile(doctorId: doctorId, profile: updated);
+        }
+        if (!mounted) return;
+        setState(() {
+          _profile.photoUrl = null;
+          _resolvedPhotoUrl = null;
+          _isUploadingPhoto = false;
+        });
+        widget.data.profile = _profile;
+        widget.onProfileUpdated?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo removed.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final source = action == ImagePickerResultAction.camera
+          ? ImageSource.camera
+          : ImageSource.gallery;
+
+      final xfile = await ImageUploadService.instance.pickImage(source);
+      if (xfile == null || !mounted) return;
+
+      final bytes = await xfile.readAsBytes();
+      if (!mounted) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      final storagePath = await ImageUploadService.instance.uploadImage(
+        imageBytes: bytes,
+        fileNamePrefix: 'doctor_avatar',
+      );
+
+      final doctorId = _repository.currentUserId;
+      if (doctorId != null && doctorId.isNotEmpty) {
+        final updated = _profile.copyWith(photoUrl: storagePath);
+        await _repository.saveDoctorProfile(doctorId: doctorId, profile: updated);
+      }
+
+      final resolvedUrl = await ImageUploadService.instance.resolveImageUrl(storagePath);
+
+      if (!mounted) return;
+      setState(() {
+        _profile.photoUrl = storagePath;
+        _resolvedPhotoUrl = resolvedUrl;
+        _isUploadingPhoto = false;
+      });
+      widget.data.profile = _profile;
+      widget.onProfileUpdated?.call();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Doctor photo updated successfully.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingPhoto = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -230,22 +341,73 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                 ),
                 child: Column(
                   children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySurface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 2,
+                    // Interactive Doctor Avatar with Camera Badge
+                    Stack(
+                      children: [
+                        Container(
+                          width: 84,
+                          height: 84,
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: _isUploadingPhoto
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : _resolvedPhotoUrl != null
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        _resolvedPhotoUrl!,
+                                        width: 84,
+                                        height: 84,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => const Icon(
+                                          Icons.person_rounded,
+                                          size: 48,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.person_rounded,
+                                      size: 48,
+                                      color: AppColors.primary,
+                                    ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 48,
-                        color: AppColors.primary,
-                      ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Material(
+                            color: AppColors.primary,
+                            shape: const CircleBorder(),
+                            elevation: 2,
+                            child: InkWell(
+                              onTap: _handlePhotoUpload,
+                              customBorder: const CircleBorder(),
+                              child: const Padding(
+                                padding: EdgeInsets.all(7),
+                                child: Icon(
+                                  Icons.camera_alt_rounded,
+                                  color: Colors.white,
+                                  size: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     Text(

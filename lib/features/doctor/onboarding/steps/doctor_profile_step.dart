@@ -1,6 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../services/image_upload_service.dart';
 import '../../models/doctor_profile_model.dart';
 import '../widgets/onboarding_header.dart';
 
@@ -26,6 +29,10 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
   late final TextEditingController _experienceController;
   late final TextEditingController _bioController;
 
+  String? _photoPathOrUrl;
+  Uint8List? _localPhotoBytes;
+  bool _isUploadingPhoto = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +44,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
     _experienceController =
         TextEditingController(text: widget.initialData.experienceYears);
     _bioController = TextEditingController(text: widget.initialData.bio);
+    _photoPathOrUrl = widget.initialData.photoUrl;
   }
 
   @override
@@ -49,27 +57,70 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
     super.dispose();
   }
 
-  void _handlePhotoUpload() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Profile photo upload will be available soon.',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
+  Future<void> _handlePhotoUpload() async {
+    if (_isUploadingPhoto) return;
+
+    try {
+      final action = await ImageUploadService.instance.showImagePickerSheet(
+        context,
+        hasExistingImage: _photoPathOrUrl != null || _localPhotoBytes != null,
+      );
+
+      if (action == null || !mounted) return;
+
+      if (action == ImagePickerResultAction.remove) {
+        setState(() {
+          _photoPathOrUrl = null;
+          _localPhotoBytes = null;
+        });
+        return;
+      }
+
+      final source = action == ImagePickerResultAction.camera
+          ? ImageSource.camera
+          : ImageSource.gallery;
+
+      final xfile = await ImageUploadService.instance.pickImage(source);
+      if (xfile == null || !mounted) return;
+
+      final bytes = await xfile.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingPhoto = true;
+        _localPhotoBytes = bytes;
+      });
+
+      final storagePath = await ImageUploadService.instance.uploadImage(
+        imageBytes: bytes,
+        fileNamePrefix: 'doctor_avatar',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _photoPathOrUrl = storagePath;
+        _isUploadingPhoto = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Doctor photo uploaded successfully.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingPhoto = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _handleContinue() {
@@ -80,6 +131,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
         qualifications: _qualificationsController.text.trim(),
         experienceYears: _experienceController.text.trim(),
         bio: _bioController.text.trim(),
+        photoUrl: _photoPathOrUrl,
       );
       widget.onNext(updated);
     }
@@ -102,7 +154,7 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
             ),
             const SizedBox(height: 24),
 
-            // Profile photo placeholder
+            // Profile photo selector & preview
             Center(
               child: Stack(
                 children: [
@@ -117,11 +169,31 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
                         width: 2,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      size: 56,
-                      color: AppColors.primary,
-                    ),
+                    child: _isUploadingPhoto
+                        ? const Center(
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : _localPhotoBytes != null
+                            ? ClipOval(
+                                child: Image.memory(
+                                  _localPhotoBytes!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person_rounded,
+                                size: 56,
+                                color: AppColors.primary,
+                              ),
                   ),
                   Positioned(
                     bottom: 0,
@@ -155,9 +227,11 @@ class _DoctorProfileStepState extends State<DoctorProfileStep> {
                   foregroundColor: AppColors.primary,
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text(
-                  'Add Photo',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                child: Text(
+                  _photoPathOrUrl != null || _localPhotoBytes != null
+                      ? 'Change Photo'
+                      : 'Add Photo',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
               ),
             ),

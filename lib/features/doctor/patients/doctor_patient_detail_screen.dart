@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../../home/models/patient_medicine_model.dart';
 import '../../home/models/medical_report_model.dart';
 import '../data/doctor_repository.dart';
@@ -354,27 +355,14 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySurface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          patient.name.isNotEmpty
-                              ? patient.name[0].toUpperCase()
-                              : 'P',
-                          style: AppTextStyles.headingLarge.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                    AppUserAvatar(
+                      imageUrlOrPath: patient.photoUrl,
+                      name: patient.name,
+                      size: 60,
+                      isCircle: true,
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        width: 2,
                       ),
                     ),
                     const SizedBox(width: 16),

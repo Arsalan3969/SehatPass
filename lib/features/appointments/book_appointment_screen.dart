@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../doctor/models/doctor_availability_model.dart';
 import 'appointment_confirmation_screen.dart';
 import 'data/appointment_repository.dart';
@@ -254,15 +255,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(Icons.person_rounded,
-                                size: 28, color: AppColors.primary),
+                          AppUserAvatar(
+                            imageUrlOrPath: widget.doctor.photoUrl,
+                            name: widget.doctor.name,
+                            size: 52,
+                            borderRadius: 14,
+                            isCircle: false,
                           ),
                           const SizedBox(width: 14),
                           Expanded(

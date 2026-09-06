@@ -44,6 +44,7 @@ class Doctor {
   final String consultationHours;
   final List<DoctorService> services;
   final String? photoUrl;
+  final String? clinicLogoUrl;
   final String qualifications;
   final String experienceYears;
 
@@ -63,6 +64,7 @@ class Doctor {
     required this.consultationHours,
     required this.services,
     this.photoUrl,
+    this.clinicLogoUrl,
     this.qualifications = '',
     this.experienceYears = '',
   });
@@ -85,9 +87,11 @@ class Doctor {
       doctorName = 'Dr. $rawName';
     }
 
-    final photo = profile?['profile_photo_url']?.toString() ??
-        map['profile_photo_url']?.toString() ??
-        map['photo_url']?.toString();
+    final photo = profile?['avatar_url']?.toString() ??
+        profile?['profile_photo_url']?.toString() ??
+        map['photo_url']?.toString() ??
+        map['avatar_url']?.toString() ??
+        map['profile_photo_url']?.toString();
 
     // 2. Doctor Profile fields
     final doctorId = map['doctor_id']?.toString() ??
@@ -111,12 +115,14 @@ class Doctor {
     // 3. Clinic fields
     String clinicName = 'Clinic not specified';
     String? clinicId;
+    String? clinicLogo;
     String location = 'Location not provided';
 
     if (map['clinics'] != null) {
       if (map['clinics'] is List && (map['clinics'] as List).isNotEmpty) {
         final c = (map['clinics'] as List).first as Map;
         clinicId = c['id']?.toString();
+        clinicLogo = c['logo_url']?.toString() ?? c['image_url']?.toString() ?? c['photo_url']?.toString();
         final cName = c['name']?.toString().trim();
         if (cName != null && cName.isNotEmpty) {
           clinicName = cName;
@@ -133,6 +139,7 @@ class Doctor {
       } else if (map['clinics'] is Map) {
         final c = map['clinics'] as Map;
         clinicId = c['id']?.toString();
+        clinicLogo = c['logo_url']?.toString() ?? c['image_url']?.toString() ?? c['photo_url']?.toString();
         final cName = c['name']?.toString().trim();
         if (cName != null && cName.isNotEmpty) {
           clinicName = cName;
@@ -157,6 +164,7 @@ class Doctor {
         location = directLoc;
       }
       clinicId = map['clinic_id']?.toString();
+      clinicLogo = map['clinic_logo_url']?.toString() ?? map['logo_url']?.toString();
     }
 
     // 4. Services
@@ -241,6 +249,7 @@ class Doctor {
       consultationHours: consultationHours,
       services: parsedServices,
       photoUrl: photo,
+      clinicLogoUrl: clinicLogo,
       qualifications: qualifications,
       experienceYears: experienceYears,
     );

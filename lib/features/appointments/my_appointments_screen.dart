@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import 'data/appointment_repository.dart';
 import 'models/appointment_model.dart';
 import 'appointment_detail_screen.dart';
@@ -340,15 +341,12 @@ class _AppointmentCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.person_rounded,
-                    size: 26, color: AppColors.primary),
+              AppUserAvatar(
+                imageUrlOrPath: appointment.doctor.photoUrl,
+                name: appointment.doctor.name,
+                size: 48,
+                borderRadius: 12,
+                isCircle: false,
               ),
               const SizedBox(width: 12),
               Expanded(

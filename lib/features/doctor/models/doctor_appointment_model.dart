@@ -10,6 +10,7 @@ class DoctorAppointmentModel {
   final String referenceNo;
   final String patientId;
   final String patientName;
+  final String? patientAvatarUrl;
   final String? patientPhone;
   final int? patientAge;
   final String? patientGender;
@@ -32,6 +33,7 @@ class DoctorAppointmentModel {
     String? referenceNo,
     this.patientId = '',
     required this.patientName,
+    this.patientAvatarUrl,
     this.patientPhone,
     this.patientAge,
     this.patientGender,
@@ -124,6 +126,12 @@ class DoctorAppointmentModel {
     final patientName =
         rawPatientName.isNotEmpty ? rawPatientName : 'Name not provided';
 
+    final patientAvatar = profileMap?['avatar_url']?.toString() ??
+        profileMap?['profile_photo_url']?.toString() ??
+        map['patient_avatar_url']?.toString() ??
+        map['avatar_url']?.toString() ??
+        map['patient_photo_url']?.toString();
+
     final patientPhone = profileMap?['phone']?.toString() ??
         map['patient_phone']?.toString() ??
         map['patientPhone']?.toString();
@@ -182,6 +190,7 @@ class DoctorAppointmentModel {
       referenceNo: referenceNo,
       patientId: patientId,
       patientName: patientName,
+      patientAvatarUrl: patientAvatar,
       patientPhone: patientPhone,
       patientAge: (map['patient_age'] as num?)?.toInt() ??
           (map['patientAge'] as num?)?.toInt(),

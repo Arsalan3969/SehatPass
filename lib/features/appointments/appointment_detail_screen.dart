@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import 'models/appointment_model.dart';
 import 'data/appointment_repository.dart';
 import '../doctor/models/doctor_consultation_note_model.dart';
@@ -216,15 +217,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(Icons.person_rounded,
-                                size: 28, color: AppColors.primary),
+                          AppUserAvatar(
+                            imageUrlOrPath: apt.doctor.photoUrl,
+                            name: apt.doctor.name,
+                            size: 54,
+                            borderRadius: 14,
+                            isCircle: false,
                           ),
                           const SizedBox(width: 14),
                           Expanded(

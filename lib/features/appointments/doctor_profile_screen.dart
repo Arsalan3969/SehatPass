@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import 'models/doctor_model.dart';
 import 'book_appointment_screen.dart';
 
@@ -40,36 +41,16 @@ class DoctorProfileScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                width: 2,
-                              ),
+                          AppUserAvatar(
+                            imageUrlOrPath: doctor.photoUrl,
+                            name: doctor.name,
+                            size: 80,
+                            borderRadius: 20,
+                            isCircle: false,
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                              width: 2,
                             ),
-                            child: doctor.photoUrl != null &&
-                                    doctor.photoUrl!.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: Image.network(
-                                      doctor.photoUrl!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => const Icon(
-                                        Icons.person_rounded,
-                                        size: 42,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.person_rounded,
-                                    size: 42,
-                                    color: AppColors.primary,
-                                  ),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -210,14 +191,52 @@ class DoctorProfileScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Column(
                               children: [
-                                _clinicRow(Icons.business_outlined, 'Clinic',
-                                    doctor.clinic),
-                                const Divider(
-                                    height: 1, color: AppColors.divider),
-                                _clinicRow(Icons.location_on_outlined,
-                                    'Location', doctor.location),
-                                const Divider(
-                                    height: 1, color: AppColors.divider),
+                                if (doctor.clinicLogoUrl != null && doctor.clinicLogoUrl!.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        AppUserAvatar(
+                                          imageUrlOrPath: doctor.clinicLogoUrl,
+                                          name: doctor.clinic,
+                                          size: 44,
+                                          borderRadius: 10,
+                                          isCircle: false,
+                                          fallbackIcon: Icons.local_hospital_rounded,
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                doctor.clinic,
+                                                style: AppTextStyles.labelLarge.copyWith(fontSize: 15),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                doctor.location,
+                                                style: AppTextStyles.bodySmall.copyWith(
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Divider(height: 1, color: AppColors.divider),
+                                ] else ...[
+                                  _clinicRow(Icons.business_outlined, 'Clinic',
+                                      doctor.clinic),
+                                  const Divider(
+                                      height: 1, color: AppColors.divider),
+                                  _clinicRow(Icons.location_on_outlined,
+                                      'Location', doctor.location),
+                                  const Divider(
+                                      height: 1, color: AppColors.divider),
+                                ],
                                 _clinicRow(
                                   Icons.calendar_today_outlined,
                                   'Available Days',

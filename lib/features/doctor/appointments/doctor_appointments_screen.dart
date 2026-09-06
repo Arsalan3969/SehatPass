@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_appointment_model.dart';
 import '../patients/doctor_patient_detail_screen.dart';
@@ -544,27 +545,17 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
             // Header Row (Patient Avatar + Name/Details + Status Badge)
             Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: apt.status == DoctorAppointmentStatus.pending
-                        ? const Color(0xFFFFFBEB)
-                        : AppColors.primarySurface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      apt.patientName.isNotEmpty ? apt.patientName[0] : 'P',
-                      style: TextStyle(
-                        color: apt.status == DoctorAppointmentStatus.pending
-                            ? const Color(0xFFD97706)
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
+                AppUserAvatar(
+                  imageUrlOrPath: apt.patientAvatarUrl,
+                  name: apt.patientName,
+                  size: 40,
+                  isCircle: true,
+                  backgroundColor: apt.status == DoctorAppointmentStatus.pending
+                      ? const Color(0xFFFFFBEB)
+                      : AppColors.primarySurface,
+                  textColor: apt.status == DoctorAppointmentStatus.pending
+                      ? const Color(0xFFD97706)
+                      : AppColors.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

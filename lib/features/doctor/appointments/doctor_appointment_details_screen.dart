@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_appointment_model.dart';
 import '../models/doctor_patient_model.dart';
@@ -330,24 +331,11 @@ class _DoctorAppointmentDetailsScreenState
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              _appointment.patientName.isNotEmpty
-                                  ? _appointment.patientName[0]
-                                  : 'P',
-                              style: AppTextStyles.headingLarge.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
+                        AppUserAvatar(
+                          imageUrlOrPath: _appointment.patientAvatarUrl,
+                          name: _appointment.patientName,
+                          size: 56,
+                          isCircle: true,
                         ),
                         const SizedBox(width: 14),
                         Expanded(

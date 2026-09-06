@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../../notifications/data/notification_repository.dart';
 import '../../notifications/notifications_screen.dart';
 import '../data/doctor_repository.dart';
@@ -749,25 +750,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primarySurface,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        patient.name.isNotEmpty
-                                            ? patient.name[0]
-                                            : 'P',
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ),
+                                  AppUserAvatar(
+                                    imageUrlOrPath: patient.photoUrl,
+                                    name: patient.name,
+                                    size: 40,
+                                    isCircle: true,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -937,22 +924,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFFBEB),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      req.patientName.isNotEmpty ? req.patientName[0] : 'P',
-                      style: const TextStyle(
-                        color: Color(0xFFD97706),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                AppUserAvatar(
+                  imageUrlOrPath: req.patientAvatarUrl,
+                  name: req.patientName,
+                  size: 38,
+                  isCircle: true,
+                  backgroundColor: const Color(0xFFFFFBEB),
+                  textColor: const Color(0xFFD97706),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

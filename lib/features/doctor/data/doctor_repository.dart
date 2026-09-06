@@ -63,7 +63,9 @@ class DoctorRepository {
       }
 
       final fullName = profileRow?['full_name']?.toString().trim() ?? '';
-      final photoUrl = profileRow?['profile_photo_url']?.toString();
+      final photoUrl = profileRow?['avatar_url']?.toString() ??
+          docProfileRow?['photo_url']?.toString() ??
+          profileRow?['profile_photo_url']?.toString();
 
       if (docProfileRow != null) {
         return DoctorProfileModel.fromMap(
@@ -113,12 +115,18 @@ class DoctorRepository {
     required DoctorProfileModel profile,
   }) async {
     try {
-      // 1. Update public.profiles (full_name only, preserve role & id)
+      // 1. Update public.profiles (full_name and avatar_url)
+      final profileUpdates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
       if (profile.fullName.trim().isNotEmpty) {
-        await _client.from('profiles').update({
-          'full_name': profile.fullName.trim(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', doctorId);
+        profileUpdates['full_name'] = profile.fullName.trim();
+      }
+      if (profile.photoUrl != null) {
+        profileUpdates['avatar_url'] = profile.photoUrl;
+      }
+      if (profileUpdates.length > 1) {
+        await _client.from('profiles').update(profileUpdates).eq('id', doctorId);
       }
 
       // 2. Upsert public.doctor_profiles
@@ -128,6 +136,7 @@ class DoctorRepository {
         'qualifications': profile.qualifications.trim(),
         'experience_years': profile.experienceYears.trim(),
         'bio': profile.bio.trim(),
+        if (profile.photoUrl != null) 'photo_url': profile.photoUrl,
         'is_published': profile.isPublished,
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -501,13 +510,15 @@ class DoctorRepository {
         profiles!patient_id (
           id,
           full_name,
+          avatar_url,
           profile_photo_url
         ),
         clinics (
           id,
           name,
           address,
-          city
+          city,
+          logo_url
         )
       ''').eq('doctor_id', uid);
 
@@ -553,13 +564,15 @@ class DoctorRepository {
         profiles!patient_id (
           id,
           full_name,
+          avatar_url,
           profile_photo_url
         ),
         clinics (
           id,
           name,
           address,
-          city
+          city,
+          logo_url
         )
       ''').eq('id', appointmentId).eq('doctor_id', uid).maybeSingle();
 
@@ -623,13 +636,15 @@ class DoctorRepository {
             profiles!patient_id (
               id,
               full_name,
+              avatar_url,
               profile_photo_url
             ),
             clinics (
               id,
               name,
               address,
-              city
+              city,
+              logo_url
             )
           ''')
           .single();
@@ -704,7 +719,7 @@ class DoctorRepository {
       final results = await Future.wait([
         _client
             .from('profiles')
-            .select('id, full_name, profile_photo_url')
+            .select('id, full_name, avatar_url, profile_photo_url')
             .inFilter('id', uniquePatientIds),
         _client
             .from('patient_profiles')
@@ -806,7 +821,7 @@ class DoctorRepository {
       final results = await Future.wait([
         _client
             .from('profiles')
-            .select('id, full_name, profile_photo_url')
+            .select('id, full_name, avatar_url, profile_photo_url')
             .eq('id', patientId)
             .maybeSingle(),
         _client

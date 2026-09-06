@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import 'data/appointment_repository.dart';
 import 'models/doctor_model.dart';
 import 'doctor_profile_screen.dart';
@@ -383,31 +384,12 @@ class _DoctorCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: doctor.photoUrl != null && doctor.photoUrl!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
-                          doctor.photoUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.person_rounded,
-                            size: 30,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      )
-                    : const Icon(
-                        Icons.person_rounded,
-                        size: 30,
-                        color: AppColors.primary,
-                      ),
+              AppUserAvatar(
+                imageUrlOrPath: doctor.photoUrl,
+                name: doctor.name,
+                size: 56,
+                borderRadius: 14,
+                isCircle: false,
               ),
               const SizedBox(width: 14),
               Expanded(

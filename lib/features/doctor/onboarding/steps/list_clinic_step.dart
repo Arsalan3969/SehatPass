@@ -1,6 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../services/image_upload_service.dart';
 import '../../models/clinic_model.dart';
 import '../widgets/onboarding_header.dart';
 
@@ -26,6 +29,10 @@ class _ListClinicStepState extends State<ListClinicStep> {
   late final TextEditingController _phoneController;
   late final TextEditingController _descriptionController;
 
+  String? _logoPathOrUrl;
+  Uint8List? _localLogoBytes;
+  bool _isUploadingLogo = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +42,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
     _phoneController = TextEditingController(text: widget.initialData.phone);
     _descriptionController =
         TextEditingController(text: widget.initialData.description);
+    _logoPathOrUrl = widget.initialData.logoUrl;
   }
 
   @override
@@ -47,27 +55,70 @@ class _ListClinicStepState extends State<ListClinicStep> {
     super.dispose();
   }
 
-  void _handleImageUpload() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Clinic image upload will be available soon.',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
+  Future<void> _handleImageUpload() async {
+    if (_isUploadingLogo) return;
+
+    try {
+      final action = await ImageUploadService.instance.showImagePickerSheet(
+        context,
+        hasExistingImage: _logoPathOrUrl != null || _localLogoBytes != null,
+      );
+
+      if (action == null || !mounted) return;
+
+      if (action == ImagePickerResultAction.remove) {
+        setState(() {
+          _logoPathOrUrl = null;
+          _localLogoBytes = null;
+        });
+        return;
+      }
+
+      final source = action == ImagePickerResultAction.camera
+          ? ImageSource.camera
+          : ImageSource.gallery;
+
+      final xfile = await ImageUploadService.instance.pickImage(source);
+      if (xfile == null || !mounted) return;
+
+      final bytes = await xfile.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingLogo = true;
+        _localLogoBytes = bytes;
+      });
+
+      final storagePath = await ImageUploadService.instance.uploadImage(
+        imageBytes: bytes,
+        fileNamePrefix: 'clinic_logo',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _logoPathOrUrl = storagePath;
+        _isUploadingLogo = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Clinic photo uploaded successfully.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingLogo = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _handleContinue() {
@@ -78,6 +129,7 @@ class _ListClinicStepState extends State<ListClinicStep> {
         city: _cityController.text.trim(),
         phone: _phoneController.text.trim(),
         description: _descriptionController.text.trim(),
+        logoUrl: _logoPathOrUrl,
       );
       widget.onNext(updated);
     }
@@ -100,13 +152,15 @@ class _ListClinicStepState extends State<ListClinicStep> {
             ),
             const SizedBox(height: 20),
 
-            // Clinic image / logo placeholder banner
+            // Clinic image / logo selector & preview banner
             InkWell(
               onTap: _handleImageUpload,
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: _localLogoBytes != null
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -115,39 +169,88 @@ class _ListClinicStepState extends State<ListClinicStep> {
                     style: BorderStyle.solid,
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySurface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Upload Clinic Logo or Photo',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'PNG, JPG up to 5MB (Optional)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
+                child: _isUploadingLogo
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(28.0),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : _localLogoBytes != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                Image.memory(
+                                  _localLogoBytes!,
+                                  width: double.infinity,
+                                  height: 140,
+                                  fit: BoxFit.cover,
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_rounded,
+                                          color: Colors.white, size: 14),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Change',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primarySurface,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Upload Clinic Logo or Photo',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'PNG, JPG up to 5MB (Optional)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
               ),
             ),
             const SizedBox(height: 20),

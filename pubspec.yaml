@@ -43,6 +43,7 @@ dependencies:
   syncfusion_flutter_pdf: ^34.2.6
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

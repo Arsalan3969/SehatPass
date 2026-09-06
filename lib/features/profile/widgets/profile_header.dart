@@ -5,12 +5,18 @@ import '../../../core/theme/app_text_styles.dart';
 class ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String? avatarUrl;
+  final bool isUploadingAvatar;
+  final VoidCallback? onAvatarTap;
   final VoidCallback onEditProfile;
 
   const ProfileHeader({
     super.key,
     required this.name,
     required this.email,
+    this.avatarUrl,
+    this.isUploadingAvatar = false,
+    this.onAvatarTap,
     required this.onEditProfile,
   });
 
@@ -27,41 +33,79 @@ class ProfileHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
       child: Column(
         children: [
-          // Avatar with edit icon
+          // Avatar with interactive camera badge
           Stack(
             children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primarySurface,
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25),
-                    width: 3,
+              InkWell(
+                onTap: onAvatarTap,
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primarySurface,
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      width: 3,
+                    ),
                   ),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 46,
-                  color: AppColors.primary,
+                  child: isUploadingAvatar
+                      ? const Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        )
+                      : (avatarUrl != null && avatarUrl!.isNotEmpty)
+                          ? ClipOval(
+                              child: Image.network(
+                                avatarUrl!,
+                                width: 90,
+                                height: 90,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.person_rounded,
+                                  size: 46,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.person_rounded,
+                              size: 46,
+                              color: AppColors.primary,
+                            ),
                 ),
               ),
               Positioned(
                 bottom: 0,
                 right: 0,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primary,
-                    border: Border.all(color: AppColors.surface, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    size: 14,
-                    color: Colors.white,
+                child: Material(
+                  color: AppColors.primary,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: InkWell(
+                    onTap: onAvatarTap,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                        border: Border.all(color: AppColors.surface, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),

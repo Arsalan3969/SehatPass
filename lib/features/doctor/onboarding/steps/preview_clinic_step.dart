@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../services/image_upload_service.dart';
 import '../../models/doctor_onboarding_data.dart';
 import '../widgets/onboarding_header.dart';
 
@@ -100,11 +101,38 @@ class PreviewClinicStep extends StatelessWidget {
                           width: 2,
                         ),
                       ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 40,
-                        color: AppColors.primary,
-                      ),
+                      child: (profile.photoUrl != null && profile.photoUrl!.isNotEmpty)
+                          ? FutureBuilder<String?>(
+                              future: ImageUploadService.instance
+                                  .resolveImageUrl(profile.photoUrl),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData && snapshot.data != null) {
+                                  return ClipOval(
+                                    child: Image.network(
+                                      snapshot.data!,
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => const Icon(
+                                        Icons.person_rounded,
+                                        size: 40,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const Icon(
+                                  Icons.person_rounded,
+                                  size: 40,
+                                  color: AppColors.primary,
+                                );
+                              },
+                            )
+                          : const Icon(
+                              Icons.person_rounded,
+                              size: 40,
+                              color: AppColors.primary,
+                            ),
                     ),
                     const SizedBox(width: 16),
 

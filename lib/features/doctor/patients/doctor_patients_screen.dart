@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_user_avatar.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_patient_model.dart';
 import 'doctor_patient_detail_screen.dart';
@@ -291,24 +292,11 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Avatar
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySurface,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    patient.name.isNotEmpty ? patient.name[0].toUpperCase() : 'P',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
+              AppUserAvatar(
+                imageUrlOrPath: patient.photoUrl,
+                name: patient.name,
+                size: 44,
+                isCircle: true,
               ),
               const SizedBox(width: 14),
 

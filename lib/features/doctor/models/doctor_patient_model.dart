@@ -93,7 +93,9 @@ class DoctorPatientModel {
     final fullName =
         rawFullName.isNotEmpty ? rawFullName : 'Name not provided';
 
-    final photoUrl = profileMap?['profile_photo_url']?.toString() ??
+    final photoUrl = profileMap?['avatar_url']?.toString() ??
+        profileMap?['profile_photo_url']?.toString() ??
+        map['avatar_url']?.toString() ??
         map['profile_photo_url']?.toString() ??
         map['photo_url']?.toString();
 

@@ -70,10 +70,12 @@ class AppointmentRepository extends ChangeNotifier {
         rating,
         total_reviews,
         is_published,
+        photo_url,
         profiles!doctor_id (
           id,
           full_name,
           email,
+          avatar_url,
           profile_photo_url
         )
       ''').eq('is_published', true);
@@ -98,7 +100,7 @@ class AppointmentRepository extends ChangeNotifier {
 
       // Fetch clinics, clinic_services, and doctor_availability in parallel
       final relatedResults = await Future.wait([
-        _client.from('clinics').select().inFilter('doctor_id', doctorIds).eq('is_active', true),
+        _client.from('clinics').select('id, doctor_id, name, address, city, logo_url, is_active').inFilter('doctor_id', doctorIds).eq('is_active', true),
         _client.from('clinic_services').select().inFilter('doctor_id', doctorIds).eq('is_active', true),
         _client.from('doctor_availability').select().inFilter('doctor_id', doctorIds).eq('is_available', true),
       ]);
@@ -164,18 +166,19 @@ class AppointmentRepository extends ChangeNotifier {
           .eq('is_available', true);
 
       if (clinicId != null && clinicId.isNotEmpty) {
-        query = query.or('clinic_id.eq.$clinicId,clinic_id.is.null');
+        query = query.eq('clinic_id', clinicId);
       }
 
-      final response = await query;
-      return (response as List).cast<Map<String, dynamic>>();
+      final response = await query.order('day_of_week');
+      final list = (response as List).cast<Map<String, dynamic>>();
+      return list;
     } catch (e) {
-      debugPrint('AppointmentRepository: Error fetching doctor availability: $e');
-      throw 'Unable to load doctor availability. Please try again.';
+      debugPrint('AppointmentRepository: Error fetching availability: $e');
+      throw 'Unable to load doctor availability.';
     }
   }
 
-  /// Fetches currently booked appointment times for a doctor on a specific date (pending or confirmed).
+  /// Returns list of already booked appointment times ('10:00 AM', etc.) for a doctor on a specific date.
   Future<List<String>> getBookedSlots({
     required String doctorId,
     required DateTime date,
@@ -189,7 +192,8 @@ class AppointmentRepository extends ChangeNotifier {
           .eq('appointment_date', dateStr)
           .inFilter('status', ['pending', 'confirmed']);
 
-      return (response as List)
+      final list = response as List;
+      return list
           .map((item) => (item as Map)['appointment_time']?.toString() ?? '')
           .where((t) => t.isNotEmpty)
           .toList();
@@ -199,13 +203,20 @@ class AppointmentRepository extends ChangeNotifier {
     }
   }
 
-  /// Fetches appointments for the currently authenticated patient from Supabase.
-  Future<List<Appointment>> getPatientAppointments() async {
+  /// Fetches patient appointments from Supabase for the current authenticated user.
+  Future<List<Appointment>> getPatientAppointments() => getAppointments();
+
+  /// Fetches patient appointments from Supabase for the current authenticated user.
+  Future<List<Appointment>> getAppointments({bool forceRefresh = false}) async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
       _appointments.clear();
       notifyListeners();
       return [];
+    }
+
+    if (_appointments.isNotEmpty && !forceRefresh) {
+      return _appointments;
     }
 
     try {
@@ -226,6 +237,7 @@ class AppointmentRepository extends ChangeNotifier {
         profiles!doctor_id (
           id,
           full_name,
+          avatar_url,
           profile_photo_url,
           doctor_profiles (
             specialization,
@@ -233,13 +245,15 @@ class AppointmentRepository extends ChangeNotifier {
             experience_years,
             bio,
             rating,
-            total_reviews
+            total_reviews,
+            photo_url
           ),
           clinics (
             id,
             name,
             address,
-            city
+            city,
+            logo_url
           )
         )
       ''').eq('patient_id', userId).order('appointment_date', ascending: false).order('created_at', ascending: false);
@@ -261,7 +275,10 @@ class AppointmentRepository extends ChangeNotifier {
           'doctor_id': itemMap['doctor_id'],
           'name': doctorProfileMap['full_name'] ?? '',
           'full_name': doctorProfileMap['full_name'] ?? '',
-          'photo_url': doctorProfileMap['profile_photo_url'],
+          'photo_url': doctorProfileMap['avatar_url'] ??
+              doctorProfileMap['profile_photo_url'] ??
+              docProf?['photo_url'],
+          'clinic_logo_url': clinicProf?['logo_url'],
           'specialization': docProf?['specialization'] ?? '',
           'qualifications': docProf?['qualifications'] ?? '',
           'experience_years': docProf?['experience_years'] ?? '',

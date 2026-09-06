@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../services/auth_service.dart';
+import '../../services/image_upload_service.dart';
 import '../../services/notification_service.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
@@ -25,6 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   String _fullName = 'Patient';
   String _email = '';
+  String? _avatarPathOrUrl;
+  String? _resolvedAvatarUrl;
+  bool _isUploadingAvatar = false;
   String _dateOfBirth = 'Not specified';
   String _gender = 'Not specified';
   String _bloodGroup = 'Not specified';
@@ -58,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final profile = await client
             .from('profiles')
-            .select('full_name, email')
+            .select('full_name, email, avatar_url')
             .eq('id', userId)
             .maybeSingle();
 
@@ -70,6 +75,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final email = profile['email']?.toString().trim();
           if (email != null && email.isNotEmpty) {
             _email = email;
+          }
+          _avatarPathOrUrl = profile['avatar_url']?.toString();
+          if (_avatarPathOrUrl != null && _avatarPathOrUrl!.isNotEmpty) {
+            _resolvedAvatarUrl = await ImageUploadService.instance.resolveImageUrl(_avatarPathOrUrl);
           }
         }
       } catch (_) {}
@@ -358,6 +367,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _handleAvatarUpload() async {
+    if (_isUploadingAvatar) return;
+
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final action = await ImageUploadService.instance.showImagePickerSheet(
+        context,
+        hasExistingImage: _avatarPathOrUrl != null && _avatarPathOrUrl!.isNotEmpty,
+      );
+
+      if (action == null || !mounted) return;
+
+      final client = Supabase.instance.client;
+
+      if (action == ImagePickerResultAction.remove) {
+        setState(() => _isUploadingAvatar = true);
+        await client.from('profiles').update({
+          'avatar_url': null,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', user.id);
+
+        if (!mounted) return;
+        setState(() {
+          _avatarPathOrUrl = null;
+          _resolvedAvatarUrl = null;
+          _isUploadingAvatar = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo removed.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final source = action == ImagePickerResultAction.camera
+          ? ImageSource.camera
+          : ImageSource.gallery;
+
+      final xfile = await ImageUploadService.instance.pickImage(source);
+      if (xfile == null || !mounted) return;
+
+      final bytes = await xfile.readAsBytes();
+      if (!mounted) return;
+
+      setState(() => _isUploadingAvatar = true);
+
+      final storagePath = await ImageUploadService.instance.uploadImage(
+        imageBytes: bytes,
+        fileNamePrefix: 'patient_avatar',
+        userIdOverride: user.id,
+      );
+
+      await client.from('profiles').update({
+        'avatar_url': storagePath,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', user.id);
+
+      final resolvedUrl = await ImageUploadService.instance.resolveImageUrl(storagePath);
+
+      if (!mounted) return;
+      setState(() {
+        _avatarPathOrUrl = storagePath;
+        _resolvedAvatarUrl = resolvedUrl;
+        _isUploadingAvatar = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile photo updated successfully!'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingAvatar = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.emergency,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -379,6 +481,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ProfileHeader(
                 name: _isLoading ? 'Loading...' : _fullName,
                 email: _isLoading ? '...' : _email,
+                avatarUrl: _resolvedAvatarUrl,
+                isUploadingAvatar: _isUploadingAvatar,
+                onAvatarTap: _handleAvatarUpload,
                 onEditProfile: () {
                   EditProfileBottomSheet.show(
                     context,
