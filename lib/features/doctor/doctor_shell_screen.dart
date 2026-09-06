@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../notifications/data/notification_repository.dart';
 import 'data/doctor_repository.dart';
 import 'models/doctor_onboarding_data.dart';
 import 'models/doctor_appointment_model.dart';
@@ -15,6 +16,7 @@ import 'profile/doctor_profile_screen.dart';
 class DoctorShellScreen extends StatefulWidget {
   final DoctorOnboardingData? data;
   final DoctorRepository? repository;
+  final NotificationRepository? notificationRepository;
   final List<DoctorAppointmentModel>? initialAppointments;
   final List<DoctorPatientModel>? initialPatients;
 
@@ -22,6 +24,7 @@ class DoctorShellScreen extends StatefulWidget {
     super.key,
     this.data,
     this.repository,
+    this.notificationRepository,
     this.initialAppointments,
     this.initialPatients,
   });
@@ -229,6 +232,7 @@ class _DoctorShellScreenState extends State<DoctorShellScreen> {
               appointments: _appointments,
               patients: _patients,
               repository: _repository,
+              notificationRepository: widget.notificationRepository,
               onAcceptAppointment: _onAcceptAppointment,
               onDeclineAppointment: _onDeclineAppointment,
               onNavigateToTab: _navigateToTab,

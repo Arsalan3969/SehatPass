@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../notifications/data/notification_repository.dart';
+import '../../notifications/notifications_screen.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_onboarding_data.dart';
 import '../models/doctor_appointment_model.dart';
@@ -13,6 +15,7 @@ class DoctorDashboardScreen extends StatefulWidget {
   final List<DoctorAppointmentModel> appointments;
   final List<DoctorPatientModel> patients;
   final DoctorRepository? repository;
+  final NotificationRepository? notificationRepository;
   final dynamic Function(DoctorAppointmentModel appointment)? onAcceptAppointment;
   final dynamic Function(DoctorAppointmentModel appointment)? onDeclineAppointment;
   final Function(int tabIndex)? onNavigateToTab;
@@ -23,6 +26,7 @@ class DoctorDashboardScreen extends StatefulWidget {
     required this.appointments,
     this.patients = const [],
     this.repository,
+    this.notificationRepository,
     this.onAcceptAppointment,
     this.onDeclineAppointment,
     this.onNavigateToTab,
@@ -34,6 +38,25 @@ class DoctorDashboardScreen extends StatefulWidget {
 
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   final Set<String> _updatingAppointmentIds = {};
+  late final NotificationRepository _notifRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifRepo = widget.notificationRepository ?? NotificationRepository.instance;
+    _notifRepo.addListener(_onNotificationStateChanged);
+    _notifRepo.getUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    _notifRepo.removeListener(_onNotificationStateChanged);
+    super.dispose();
+  }
+
+  void _onNotificationStateChanged() {
+    if (mounted) setState(() {});
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -218,108 +241,19 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     });
   }
 
-  void _showNotificationDialog() {
-    final pending = _pendingRequests;
-    final clinicName = widget.data.clinic.name;
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: AppColors.surface,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primarySurface,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.notifications_active_outlined,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('Notifications', style: AppTextStyles.headingSmall),
-          ],
+  void _openNotificationCenter() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          repository: _notifRepo,
+          isDoctor: true,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (pending.isNotEmpty) ...[
-              _buildNotificationItem(
-                title: 'New Appointment Request',
-                body: '${pending.first.patientName} requested ${pending.first.serviceName}.',
-                time: '${pending.first.date} • ${pending.first.time}',
-              ),
-              if (clinicName.isNotEmpty) const Divider(height: 16),
-            ],
-            if (clinicName.isNotEmpty)
-              _buildNotificationItem(
-                title: 'Clinic Published',
-                body: '$clinicName is active and ready for appointments.',
-                time: 'Active',
-              ),
-            if (pending.isEmpty && clinicName.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'No new notifications.',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('Close'),
-          ),
-        ],
       ),
-    );
-  }
-
-  Widget _buildNotificationItem({
-    required String title,
-    required String body,
-    required String time,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: AppTextStyles.labelLarge.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              time,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          body,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
+    ).then((_) {
+      _notifRepo.getUnreadCount();
+      if (mounted) setState(() {});
+    });
   }
 
   void _showClinicLiveNotice() {
@@ -361,33 +295,56 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           style: AppTextStyles.headingMedium,
         ),
         actions: [
-          // Notification icon with badge
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppColors.textPrimary,
-                  size: 24,
-                ),
-                tooltip: 'Notifications',
-                onPressed: _showNotificationDialog,
-              ),
-              if (pendingList.isNotEmpty)
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD97706),
-                      shape: BoxShape.circle,
+          // Notification icon with real unread count badge
+          ListenableBuilder(
+            listenable: _notifRepo,
+            builder: (context, _) {
+              final count = _notifRepo.unreadCount;
+              final countText = count > 9 ? '9+' : '$count';
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 24,
                     ),
+                    tooltip: 'Notifications',
+                    onPressed: _openNotificationCenter,
                   ),
-                ),
-            ],
+                  if (count > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.emergency,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: Text(
+                            countText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],

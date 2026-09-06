@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../notifications/notifications_screen.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_info_row.dart';
 import 'widgets/profile_menu_row.dart';
@@ -577,6 +578,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuRow(
                             icon: Icons.notifications_none_rounded,
                             label: 'Notifications',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            ),
+                          ),
+                          ProfileMenuRow(
+                            icon: Icons.alarm_on_rounded,
+                            label: 'Medicine Reminder Alerts',
                             onTap: () => _showNotificationsDialog(context),
                           ),
                           ProfileMenuRow(

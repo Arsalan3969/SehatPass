@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
+import '../notifications/data/notification_repository.dart';
 import '../reports/data/medical_reports_repository.dart';
 import '../reports/widgets/report_details_bottom_sheet.dart';
 import 'data/patient_home_repository.dart';
@@ -18,8 +19,13 @@ import '../../app/app_shell.dart';
 
 class HomeScreen extends StatefulWidget {
   final PatientHomeRepository? repository;
+  final NotificationRepository? notificationRepository;
 
-  const HomeScreen({super.key, this.repository});
+  const HomeScreen({
+    super.key,
+    this.repository,
+    this.notificationRepository,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,21 +35,35 @@ class _HomeScreenState extends State<HomeScreen> {
   PatientHomeRepository get _repo =>
       widget.repository ?? PatientHomeRepository.instance;
 
+  NotificationRepository get _notificationRepo =>
+      widget.notificationRepository ?? NotificationRepository.instance;
+
   PatientHomeData? _data;
+  int _unreadNotificationsCount = 0;
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _notificationRepo.addListener(_onNotificationRepoChanged);
     _loadData();
     AppShell.tabNotifier.addListener(_onTabChanged);
   }
 
   @override
   void dispose() {
+    _notificationRepo.removeListener(_onNotificationRepoChanged);
     AppShell.tabNotifier.removeListener(_onTabChanged);
     super.dispose();
+  }
+
+  void _onNotificationRepoChanged() {
+    if (mounted) {
+      setState(() {
+        _unreadNotificationsCount = _notificationRepo.unreadCount;
+      });
+    }
   }
 
   void _onTabChanged() {
@@ -60,10 +80,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final data = await _repo.getPatientHomeData();
+      final results = await Future.wait([
+        _repo.getPatientHomeData(),
+        _notificationRepo.getUnreadCount(),
+      ]);
+
       if (!mounted) return;
       setState(() {
-        _data = data;
+        _data = results[0] as PatientHomeData;
+        _unreadNotificationsCount = results[1] as int;
         _isLoading = false;
       });
     } catch (e) {
@@ -108,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 HomeGreetingBar(
                   patientName: _data?.patientName,
                   isLoading: _isLoading,
+                  unreadCount: _unreadNotificationsCount,
                 ),
                 const SizedBox(height: 20),
                 if (_errorMessage != null)

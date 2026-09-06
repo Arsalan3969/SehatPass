@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../services/auth_service.dart';
+import '../../notifications/notifications_screen.dart';
 import '../data/doctor_repository.dart';
 import '../models/doctor_onboarding_data.dart';
 import '../models/doctor_profile_model.dart';
@@ -329,11 +330,13 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                   children: [
                     _buildSettingRow(
                       icon: Icons.notifications_none_rounded,
-                      title: 'Appointment Alerts',
-                      subtitle: 'Push notifications for new bookings',
-                      onTap: () => _showNotice(
+                      title: 'Notifications',
+                      subtitle: 'View appointment and patient updates',
+                      onTap: () => Navigator.push(
                         context,
-                        'Notification settings will be configurable once Supabase is connected.',
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(isDoctor: true),
+                        ),
                       ),
                     ),
                     const Divider(height: 1),
