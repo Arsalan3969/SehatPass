@@ -41,6 +41,8 @@ dependencies:
   flutter_markdown: ^0.7.4+3
   url_launcher: ^6.3.2
   syncfusion_flutter_pdf: ^34.2.6
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:

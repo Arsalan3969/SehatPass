@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../services/notification_service.dart';
 import '../../shared/widgets/app_card.dart';
 import 'data/medicine_repository.dart';
 import 'models/medicine_item.dart';
@@ -75,6 +76,22 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
       if (mounted) {
         _showSnackBar(
             e is String ? e : 'Unable to update dose status. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    final hasPermission =
+        await NotificationService.instance.isPermissionGranted();
+    if (!mounted) return;
+
+    if (hasPermission) {
+      _showSnackBar(
+          'Daily medicine reminders are active for your scheduled medicines.');
+    } else {
+      final granted = await NotificationService.instance.requestPermission();
+      if (mounted && granted) {
+        _showSnackBar('Medicine notifications enabled successfully!');
       }
     }
   }
@@ -183,42 +200,45 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
                     ),
                   ),
                   // Notification icon — consistent with Home screen
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x06000000),
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(
-                          Icons.notifications_outlined,
-                          color: AppColors.textPrimary,
-                          size: 22,
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: _checkNotificationStatus,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x06000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Icon(
+                            Icons.notifications_outlined,
+                            color: AppColors.textPrimary,
+                            size: 22,
+                          ),
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

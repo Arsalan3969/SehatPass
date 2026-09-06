@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
 import 'widgets/profile_header.dart';
@@ -10,7 +12,6 @@ import 'widgets/profile_menu_row.dart';
 import '../emergency_qr/emergency_qr_screen.dart';
 import '../emergency_qr/manage_emergency_info_screen.dart';
 import 'widgets/edit_profile_bottom_sheet.dart';
-import '../../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -179,6 +180,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Got it'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showNotificationsDialog(BuildContext context) async {
+    final hasPermission =
+        await NotificationService.instance.isPermissionGranted();
+
+    if (!context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: AppColors.surface,
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_active_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Medicine Reminders',
+                    style: AppTextStyles.headingSmall),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      hasPermission
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.info_outline_rounded,
+                      color: hasPermission
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasPermission
+                            ? 'Notifications are active on this device.'
+                            : 'Notifications are disabled on this device.',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: hasPermission
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  hasPermission
+                      ? 'You will receive daily reminders for your scheduled medications even when the app is closed.'
+                      : 'Enable notifications to receive timely alerts for your scheduled medication doses.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (!hasPermission)
+                TextButton(
+                  onPressed: () async {
+                    final granted =
+                        await NotificationService.instance.requestPermission();
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      if (granted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                                'Medicine notifications enabled successfully!'),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                  child: const Text('Enable Notifications',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      hasPermission ? AppColors.primary : AppColors.textSecondary,
+                ),
+                child: Text(hasPermission ? 'Got it' : 'Close'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -457,10 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuRow(
                             icon: Icons.notifications_none_rounded,
                             label: 'Notifications',
-                            onTap: () => _showComingSoon(
-                              context,
-                              'Notification settings will be available soon.',
-                            ),
+                            onTap: () => _showNotificationsDialog(context),
                           ),
                           ProfileMenuRow(
                             icon: Icons.help_outline_rounded,

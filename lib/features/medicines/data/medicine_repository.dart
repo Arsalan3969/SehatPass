@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../services/notification_service.dart';
 import '../../home/models/patient_medicine_model.dart';
 import '../models/medicine_item.dart';
 
@@ -9,10 +10,19 @@ import '../models/medicine_item.dart';
 /// authenticated user's ID (`Supabase.instance.client.auth.currentUser.id`).
 class MedicineRepository {
   final SupabaseClient? _clientOverride;
+  final NotificationService? _notificationServiceOverride;
 
-  MedicineRepository({SupabaseClient? client}) : _clientOverride = client;
+  MedicineRepository({
+    SupabaseClient? client,
+    NotificationService? notificationService,
+  })  : _clientOverride = client,
+        _notificationServiceOverride = notificationService;
 
   static final MedicineRepository instance = MedicineRepository();
+
+  NotificationService get _notificationService {
+    return _notificationServiceOverride ?? NotificationService.instance;
+  }
 
   SupabaseClient get _client {
     final override = _clientOverride;
@@ -111,15 +121,31 @@ class MedicineRepository {
   }
 
   /// Fetches active medicines and resolves today's dose tracking status for each.
-  Future<List<MedicineItem>> getTodayMedicineSchedule({DateTime? date}) async {
+  ///
+  /// Dynamic Status Resolution (Zero Database Mutation):
+  /// 1. If dose log exists for target date with status "taken" -> [MedicineStatus.taken].
+  /// 2. If target date is a past calendar day with no taken log -> [MedicineStatus.missed].
+  /// 3. If target date is a future calendar day -> [MedicineStatus.upcoming].
+  /// 4. If target date is TODAY:
+  ///    - If current minute > scheduled minute without taken log -> [MedicineStatus.missed].
+  ///    - Otherwise (current minute <= scheduled minute) -> [MedicineStatus.upcoming].
+  Future<List<MedicineItem>> getTodayMedicineSchedule({
+    DateTime? date,
+    DateTime? nowOverride,
+  }) async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
       return [];
     }
 
+    final targetDate = date ?? DateTime.now();
+    final now = nowOverride ?? DateTime.now();
+    final targetDateStr = _formatDate(targetDate);
+    final nowDateStr = _formatDate(now);
+
     try {
       final medicines = await getActiveMedicines();
-      final doseLogs = await getTodayDoseLogs(date: date);
+      final doseLogs = await getTodayDoseLogs(date: targetDate);
 
       // Create a map of medicine_id -> dose log
       final Map<String, Map<String, dynamic>> doseLogMap = {};
@@ -132,12 +158,38 @@ class MedicineRepository {
 
       return medicines.map((med) {
         final log = doseLogMap[med.id];
-        MedicineStatus status = MedicineStatus.upcoming;
-        String? doseLogId;
+        final doseLogId = log?['id']?.toString();
+        final rawStatus = log?['status']?.toString().toLowerCase();
 
-        if (log != null) {
-          status = MedicineStatusProps.fromString(log['status']?.toString());
-          doseLogId = log['id']?.toString();
+        MedicineStatus status;
+
+        if (rawStatus == 'taken') {
+          status = MedicineStatus.taken;
+        } else {
+          // Compare target date against today's date
+          final dateComparison = targetDateStr.compareTo(nowDateStr);
+          if (dateComparison < 0) {
+            // Past day without a taken log -> missed
+            status = MedicineStatus.missed;
+          } else if (dateComparison > 0) {
+            // Future day -> upcoming
+            status = MedicineStatus.upcoming;
+          } else {
+            // Target date is TODAY: compare scheduled time vs current time
+            final parsed =
+                NotificationService.parseScheduledTime(med.scheduledTime);
+            if (parsed != null) {
+              final scheduledMinutes = parsed.hour * 60 + parsed.minute;
+              final nowMinutes = now.hour * 60 + now.minute;
+              if (nowMinutes > scheduledMinutes) {
+                status = MedicineStatus.missed;
+              } else {
+                status = MedicineStatus.upcoming;
+              }
+            } else {
+              status = MedicineStatus.upcoming;
+            }
+          }
         }
 
         return med.toMedicineItem(status: status, doseLogId: doseLogId);
@@ -188,8 +240,15 @@ class MedicineRepository {
           .select()
           .single();
 
-      return PatientMedicineModel.fromMap(
+      final newMed = PatientMedicineModel.fromMap(
           Map<String, dynamic>.from(response as Map));
+
+      // Schedule local reminder for new active medication
+      if (newMed.isActive) {
+        await _notificationService.scheduleMedicineReminder(newMed);
+      }
+
+      return newMed;
     } catch (e) {
       debugPrint('MedicineRepository: Error adding medicine: $e');
       throw 'Unable to save medication. Please try again.';
@@ -238,8 +297,16 @@ class MedicineRepository {
           .select()
           .single();
 
-      return PatientMedicineModel.fromMap(
+      final updatedMed = PatientMedicineModel.fromMap(
           Map<String, dynamic>.from(response as Map));
+
+      // Cancel old schedule and re-schedule if still active
+      await _notificationService.cancelMedicineReminder(medicineId);
+      if (updatedMed.isActive) {
+        await _notificationService.scheduleMedicineReminder(updatedMed);
+      }
+
+      return updatedMed;
     } catch (e) {
       debugPrint('MedicineRepository: Error updating medicine: $e');
       throw 'Unable to update medication. Please try again.';
@@ -259,6 +326,8 @@ class MedicineRepository {
           .update({'is_active': false})
           .eq('id', medicineId)
           .eq('patient_id', userId);
+
+      await _notificationService.cancelMedicineReminder(medicineId);
     } catch (e) {
       debugPrint('MedicineRepository: Error deactivating medicine: $e');
       throw 'Unable to remove medication. Please try again.';
@@ -278,6 +347,8 @@ class MedicineRepository {
           .delete()
           .eq('id', medicineId)
           .eq('patient_id', userId);
+
+      await _notificationService.cancelMedicineReminder(medicineId);
     } catch (e) {
       debugPrint('MedicineRepository: Error deleting medicine: $e');
       throw 'Unable to delete medication. Please try again.';

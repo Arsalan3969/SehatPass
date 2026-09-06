@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../features/home/home_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/medicines/medicines_screen.dart';
+import '../features/medicines/data/medicine_repository.dart';
 import '../features/sehat_ai/sehat_ai_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../core/theme/app_colors.dart';
+import '../services/notification_service.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -25,6 +28,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
+  StreamSubscription<String?>? _notificationTapSubscription;
 
   static const List<Widget> _screens = [
     HomeScreen(),
@@ -39,10 +43,31 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     _currentIndex = AppShell.tabNotifier.value;
     AppShell.tabNotifier.addListener(_onTabChange);
+    _listenToNotificationTaps();
+    _syncMedicineReminders();
+  }
+
+  void _listenToNotificationTaps() {
+    _notificationTapSubscription =
+        NotificationService.instance.onNotificationTap.listen((payload) {
+      if (payload != null && payload.contains('medicine_reminder')) {
+        AppShell.switchTab(2);
+      }
+    });
+  }
+
+  Future<void> _syncMedicineReminders() async {
+    try {
+      final medicines = await MedicineRepository.instance.getActiveMedicines();
+      await NotificationService.instance.syncMedicineReminders(medicines);
+    } catch (e) {
+      debugPrint('AppShell: startup sync of medicine reminders notice: $e');
+    }
   }
 
   @override
   void dispose() {
+    _notificationTapSubscription?.cancel();
     AppShell.tabNotifier.removeListener(_onTabChange);
     super.dispose();
   }

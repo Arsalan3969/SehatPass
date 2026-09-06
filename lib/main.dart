@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth/auth_gate.dart';
 import 'core/theme/app_theme.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +18,13 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
+  // Initialize Notification Service and Android notification channels
+  await NotificationService.instance.initialize();
+
   runApp(const SehatPassApp());
 }
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 class SehatPassApp extends StatelessWidget {
   const SehatPassApp({super.key});
@@ -26,6 +32,7 @@ class SehatPassApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'SehatPass',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,

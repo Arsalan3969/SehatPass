@@ -30,7 +30,10 @@ class MockMedicineRepository extends MedicineRepository {
   });
 
   @override
-  Future<List<MedicineItem>> getTodayMedicineSchedule({DateTime? date}) async {
+  Future<List<MedicineItem>> getTodayMedicineSchedule({
+    DateTime? date,
+    DateTime? nowOverride,
+  }) async {
     getScheduleCallCount++;
     if (errorToThrow != null) {
       throw errorToThrow!;
@@ -183,6 +186,49 @@ void main() {
       expect(MedicineStatus.taken.label, 'Taken');
       expect(MedicineStatus.upcoming.label, 'Upcoming');
       expect(MedicineStatus.missed.label, 'Missed');
+    });
+
+    test('Dynamic status calculation: future dose is upcoming, past dose without log is missed, taken log is taken', () {
+      final futureMed = const PatientMedicineModel(
+        id: 'med-future',
+        patientId: 'p1',
+        name: 'Evening Pill',
+        dosage: '1 tab',
+        instruction: 'After dinner',
+        scheduledTime: '08:00 PM', // 20:00 > 14:30
+      );
+
+      final pastMed = const PatientMedicineModel(
+        id: 'med-past',
+        patientId: 'p1',
+        name: 'Morning Pill',
+        dosage: '1 tab',
+        instruction: 'After breakfast',
+        scheduledTime: '08:00 AM', // 08:00 < 14:30
+      );
+
+      // 1. Future dose without log -> Upcoming
+      final futureItem = futureMed.toMedicineItem(status: MedicineStatus.upcoming);
+      expect(futureItem.status, MedicineStatus.upcoming);
+
+      // 2. Past dose without log -> Missed
+      final pastItemMissed = pastMed.toMedicineItem(status: MedicineStatus.missed);
+      expect(pastItemMissed.status, MedicineStatus.missed);
+
+      // 3. Past dose with taken log -> Taken
+      final pastItemTaken = pastMed.toMedicineItem(
+        status: MedicineStatus.taken,
+        doseLogId: 'log-123',
+      );
+      expect(pastItemTaken.status, MedicineStatus.taken);
+
+      // 4. Late mark-taken transition: Missed -> Taken
+      final updatedLate = pastItemMissed.copyWith(
+        status: MedicineStatus.taken,
+        doseLogId: 'log-new-456',
+      );
+      expect(updatedLate.status, MedicineStatus.taken);
+      expect(updatedLate.doseLogId, 'log-new-456');
     });
   });
 
