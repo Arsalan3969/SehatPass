@@ -252,9 +252,13 @@ flutter run
 
 ---
 
-## 📱 APK Release
+## 📱 Download SehatPass
 
-> 📱 **Release APK:** Available in the [GitHub Releases](https://github.com/Arsalan3969/SehatPass/releases) section.
+### Latest Release — v1.0.0
+
+[⬇️ Download Android APK (v1.0.0)](https://github.com/Arsalan3969/SehatPass/releases/latest)
+
+> 💡 **Release Assets:** You can also find all release notes and APK binaries in the [GitHub Releases](https://github.com/Arsalan3969/SehatPass/releases) section.
 
 To build the release APK locally:
 ```bash
@@ -267,16 +271,36 @@ The compiled binary will be located at:
 
 ## 📸 Screenshots
 
-<!-- TODO: Add app screenshots here before public submission -->
-*Screenshots and UI walkthrough will be added in this section.*
+### 🧑 Patient Experience & Appointments
+<p align="center">
+  <img src="screenshots/patient-home.png" width="220" alt="Patient Home Dashboard" />
+  &nbsp;
+  <img src="screenshots/doctor-discovery.png" width="220" alt="Doctor Discovery" />
+  &nbsp;
+  <img src="screenshots/doctor-profile.png" width="220" alt="Doctor & Clinic Profile" />
+  &nbsp;
+  <img src="screenshots/book-appointment.png" width="220" alt="15-Minute Slot Booking" />
+</p>
 
-| Patient Dashboard | Doctor Discovery | Sehat AI Assistant |
-| :---: | :---: | :---: |
-| *[ Dashboard Screenshot ]* | *[ Discovery Screenshot ]* | *[ Sehat AI Screenshot ]* |
+### 🩺 Health Records & Sehat AI
+<p align="center">
+  <img src="screenshots/medicines.png" width="220" alt="Medicine Management & Schedules" />
+  &nbsp;
+  <img src="screenshots/medical-reports.png" width="220" alt="Diagnostic Lab Reports" />
+  &nbsp;
+  <img src="screenshots/sehat-ai.png" width="220" alt="Context-Aware Sehat AI" />
+</p>
 
-| Medical Reports | Lock-Screen Emergency QR | Emergency Web View |
-| :---: | :---: | :---: |
-| *[ Reports Screenshot ]* | *[ Emergency QR Screenshot ]* | *[ Web View Screenshot ]* |
+### 👨‍⚕️ Doctor Clinical Portal
+<p align="center">
+  <img src="screenshots/doctor-dashboard.png" width="220" alt="Doctor Activity Dashboard" />
+  &nbsp;
+  <img src="screenshots/doctor-appointments.png" width="220" alt="Appointment Lifecycle Management" />
+  &nbsp;
+  <img src="screenshots/doctor-patients.png" width="220" alt="Patient Directory" />
+  &nbsp;
+  <img src="screenshots/doctor-patient-details.png" width="220" alt="Clinical Summary & Consultation Notes" />
+</p>
 
 ---
 
