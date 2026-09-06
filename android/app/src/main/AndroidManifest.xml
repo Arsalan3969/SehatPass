@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:label="sehatpass"
         android:name="${applicationName}"
@@ -34,6 +36,17 @@
                     android:host="auth-callback" />
             </intent-filter>
         </activity>
+
+        <!-- Dedicated Lock-Screen Emergency QR Activity -->
+        <activity
+            android:name=".EmergencyQrActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.example.sehatpass.emergency"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

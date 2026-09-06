@@ -5,11 +5,13 @@ class SehatAiResponse {
   final String answer;
   final List<CitationItem> citations;
   final Map<String, dynamic>? metadata;
+  final bool persisted;
 
   const SehatAiResponse({
     required this.answer,
     this.citations = const [],
     this.metadata,
+    this.persisted = true,
   });
 
   factory SehatAiResponse.fromJson(Map<String, dynamic> json) {
@@ -17,10 +19,11 @@ class SehatAiResponse {
     return SehatAiResponse(
       answer: json['answer'] as String? ?? '',
       citations: rawCitations
-          .whereType<Map<String, dynamic>>()
-          .map((c) => CitationItem.fromJson(c))
+          .whereType<Map>()
+          .map((c) => CitationItem.fromJson(Map<String, dynamic>.from(c)))
           .toList(),
       metadata: json['metadata'] as Map<String, dynamic>?,
+      persisted: json['persisted'] as bool? ?? true,
     );
   }
 
@@ -28,5 +31,6 @@ class SehatAiResponse {
         'answer': answer,
         'citations': citations.map((c) => c.toJson()).toList(),
         if (metadata != null) 'metadata': metadata,
+        'persisted': persisted,
       };
 }

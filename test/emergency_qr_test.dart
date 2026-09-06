@@ -8,6 +8,7 @@ import 'package:sehatpass/features/emergency_qr/emergency_info_preview_screen.da
 import 'package:sehatpass/features/emergency_qr/emergency_qr_screen.dart';
 import 'package:sehatpass/features/emergency_qr/manage_emergency_info_screen.dart';
 import 'package:sehatpass/features/emergency_qr/models/emergency_info_model.dart';
+import 'package:sehatpass/services/lock_screen_emergency_service.dart';
 
 class MockEmergencyRepository extends EmergencyRepository {
   EmergencyInfoData dataToReturn;
@@ -96,6 +97,82 @@ class MockEmergencyRepository extends EmergencyRepository {
       };
     }
     return {'error': 'Invalid or revoked emergency QR code.'};
+  }
+}
+
+class MockLockScreenEmergencyService extends LockScreenEmergencyService {
+  bool isLockEnabled;
+  bool notificationPermissionGranted;
+  int enableCalls = 0;
+  int disableCalls = 0;
+  int updateDataCalls = 0;
+  int requestPermissionCalls = 0;
+
+  Map<String, dynamic>? lastEnabledPayload;
+  Map<String, dynamic>? lastUpdatedPayload;
+
+  MockLockScreenEmergencyService({
+    this.isLockEnabled = false,
+    this.notificationPermissionGranted = true,
+  });
+
+  @override
+  Future<bool> isEnabled() async => isLockEnabled;
+
+  @override
+  Future<bool> isNotificationPermissionGranted() async =>
+      notificationPermissionGranted;
+
+  @override
+  Future<bool> requestNotificationPermission() async {
+    requestPermissionCalls++;
+    return notificationPermissionGranted;
+  }
+
+  @override
+  Future<bool> enable({
+    required String qrUrl,
+    required String patientName,
+    required String bloodGroup,
+    String? emergencyContact,
+    String? token,
+  }) async {
+    enableCalls++;
+    isLockEnabled = true;
+    lastEnabledPayload = {
+      'qrUrl': qrUrl,
+      'patientName': patientName,
+      'bloodGroup': bloodGroup,
+      'emergencyContact': emergencyContact,
+      'token': token,
+    };
+    return true;
+  }
+
+  @override
+  Future<bool> updateData({
+    required String qrUrl,
+    required String patientName,
+    required String bloodGroup,
+    String? emergencyContact,
+    String? token,
+  }) async {
+    updateDataCalls++;
+    lastUpdatedPayload = {
+      'qrUrl': qrUrl,
+      'patientName': patientName,
+      'bloodGroup': bloodGroup,
+      'emergencyContact': emergencyContact,
+      'token': token,
+    };
+    return true;
+  }
+
+  @override
+  Future<bool> disable() async {
+    disableCalls++;
+    isLockEnabled = false;
+    return true;
   }
 }
 
@@ -336,6 +413,206 @@ void main() {
     });
   });
 
+  group('Lock-Screen Emergency QR Feature & Security Tests', () {
+    testWidgets('Renders Lock-Screen Emergency QR card with description and toggle',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService = MockLockScreenEmergencyService(isLockEnabled: false);
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lock-Screen Emergency QR'), findsOneWidget);
+      expect(
+        find.text('Allow responders to access your Emergency QR while your phone is locked.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Toggling Lock-Screen ON opens confirmation/consent dialog and calls enable on confirm',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService = MockLockScreenEmergencyService(isLockEnabled: false);
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Find the Lock-Screen switch
+      final switches = find.byType(Switch);
+      expect(switches, findsNWidgets(2)); // 1 for Access active, 1 for Lock screen
+
+      // Ensure visible and tap the lock screen switch (the second one)
+      await tester.ensureVisible(switches.at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(switches.at(1));
+      await tester.pumpAndSettle();
+
+      // Check consent dialog
+      expect(find.text('Lock-Screen Emergency QR'), findsWidgets);
+      expect(
+        find.text(
+            'Your Emergency QR will be visible to anyone who can access your phone\'s lock screen. The QR provides access to your emergency medical information.\n\nYour phone will remain locked and password protected.'),
+        findsOneWidget,
+      );
+
+      // Confirm
+      await tester.tap(find.text('Enable'));
+      await tester.pumpAndSettle();
+
+      expect(mockLockService.enableCalls, 1);
+      expect(mockLockService.isLockEnabled, isTrue);
+      expect(mockLockService.lastEnabledPayload?['patientName'], 'Abdul Wahab');
+      expect(mockLockService.lastEnabledPayload?['bloodGroup'], 'O+');
+      expect(mockLockService.lastEnabledPayload?['token'],
+          'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
+      expect(find.textContaining('Active on Lock Screen'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Toggling Lock-Screen OFF immediately calls service.disable() and removes active badge',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService =
+          MockLockScreenEmergencyService(isLockEnabled: true);
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Active on Lock Screen'), findsOneWidget);
+
+      final switches = find.byType(Switch);
+      await tester.ensureVisible(switches.at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(switches.at(1));
+      await tester.pumpAndSettle();
+
+      expect(mockLockService.disableCalls, 1);
+      expect(mockLockService.isLockEnabled, isFalse);
+      expect(find.textContaining('Active on Lock Screen'), findsNothing);
+    });
+
+    testWidgets('Regenerating emergency token updates Lock-Screen payload when enabled',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService = MockLockScreenEmergencyService(isLockEnabled: true);
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Tap regenerate icon in AppBar
+      final refreshIconFinder = find.byTooltip('Regenerate QR Token');
+      await tester.tap(refreshIconFinder);
+      await tester.pumpAndSettle();
+
+      // Confirm Reset
+      await tester.tap(find.text('Reset QR'));
+      await tester.pumpAndSettle();
+
+      expect(mockRepo.regenerateEmergencyTokenCallCount, 1);
+      expect(mockLockService.updateDataCalls, 2); // 1 from loadData sync + 1 from regenerate
+      expect(mockLockService.lastUpdatedPayload?['token'], 'f9e8d7c6-b5a4-4321-9876-fedcba098765');
+    });
+
+    testWidgets('Denying notification permission prevents enabling and shows error message',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService = MockLockScreenEmergencyService(
+        isLockEnabled: false,
+        notificationPermissionGranted: false,
+      );
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      final switches = find.byType(Switch);
+      await tester.ensureVisible(switches.at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(switches.at(1));
+      await tester.pumpAndSettle();
+
+      // Confirm dialog
+      await tester.tap(find.text('Enable'));
+      await tester.pumpAndSettle();
+
+      expect(mockLockService.requestPermissionCalls, 1);
+      expect(mockLockService.enableCalls, 0);
+      expect(mockLockService.isLockEnabled, isFalse);
+      expect(
+        find.text(
+            'Notification permission is required to show the Emergency QR on the lock screen.'),
+        findsOneWidget,
+      );
+    });
+
+    test('Security: Lock-Screen data payload contains only non-sensitive token and public URL', () async {
+      final mockLockService = MockLockScreenEmergencyService();
+      await mockLockService.enable(
+        qrUrl: 'https://sehat-pass.vercel.app/?token=token-1234',
+        patientName: 'Test Patient',
+        bloodGroup: 'B+',
+        emergencyContact: 'Contact (03001234567)',
+        token: 'token-1234',
+      );
+
+      final payload = mockLockService.lastEnabledPayload;
+      expect(payload, isNotNull);
+      expect(payload!.containsKey('patient_id'), isFalse);
+      expect(payload.containsKey('supabase_key'), isFalse);
+      expect(payload.containsKey('medical_history'), isFalse);
+      expect(payload['qrUrl'], 'https://sehat-pass.vercel.app/?token=token-1234');
+      expect(payload['token'], 'token-1234');
+    });
+
+    testWidgets('Lock-Screen Emergency QR card does not overflow on small Android screen (320x640)',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository();
+      final mockLockService = MockLockScreenEmergencyService(isLockEnabled: true);
+
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyQrScreen(
+          repository: mockRepo,
+          lockScreenService: mockLockService,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Lock-Screen Emergency QR'), findsOneWidget);
+    });
+  });
+
   group('ManageEmergencyInfoScreen Widget Tests', () {
     testWidgets('Renders all 6 sharing switches and allows toggling',
         (tester) async {
@@ -398,7 +675,7 @@ void main() {
   });
 
   group('EmergencyInfoPreviewScreen Widget Tests', () {
-    testWidgets('Renders only enabled fields and respects privacy settings',
+    testWidgets('Renders only enabled fields and respects privacy settings (no bottom call button)',
         (tester) async {
       final mockRepo = MockEmergencyRepository();
 
@@ -417,7 +694,9 @@ void main() {
       expect(find.text('Asthma'), findsOneWidget);
       expect(find.text('Ventolin (100mcg)'), findsOneWidget);
       expect(find.text('Muhammad Arsalan'), findsOneWidget);
-      expect(find.text('Contact Emergency Contact'), findsOneWidget);
+      expect(find.text('Friend • +92 300 1234567'), findsOneWidget);
+      // Verify the bottom Contact/Call button was removed
+      expect(find.text('Contact Emergency Contact'), findsNothing);
     });
 
     testWidgets('Displays No Information Shared empty card when all sharing flags are disabled',
@@ -449,6 +728,62 @@ void main() {
         find.text('The patient has turned off all emergency sharing toggles.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets(
+        'No RenderFlex overflow occurs on narrow Android dimensions (320x640 and 360x640) with long text',
+        (tester) async {
+      final mockRepo = MockEmergencyRepository(
+        initialData: const EmergencyInfoData(
+          identifier: 'token-long-data',
+          fullName: 'Muhammad Abdul Rehman Tariq',
+          bloodGroup: 'AB+ (Positive)',
+          allergies: 'Penicillin, Cephalosporins, Sulfa Drugs, Aspirin',
+          medicalConditions:
+              'Chronic Asthma, Hypertension Stage 2, Type 2 Diabetes',
+          importantMedicines:
+              'Ventolin Inhaler (100mcg), Lisinopril 10mg, Metformin 500mg daily',
+          emergencyContactName: 'Dr. Muhammad Arsalan Khan',
+          emergencyContactRelationship: 'Primary Emergency Contact & Brother',
+          emergencyContactPhone: '+92 300 1234567',
+          shareName: true,
+          shareBloodGroup: true,
+          shareAllergies: true,
+          shareMedicalConditions: true,
+          shareImportantMedicines: true,
+          shareEmergencyContact: true,
+        ),
+      );
+
+      // Test on standard compact Android (360x640)
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(createTestApp(
+        EmergencyInfoPreviewScreen(
+          repository: mockRepo,
+          initialData: mockRepo.dataToReturn,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Muhammad Abdul Rehman Tariq'), findsOneWidget);
+      expect(find.text('AB+ (Positive)'), findsOneWidget);
+      expect(find.text('Penicillin, Cephalosporins, Sulfa Drugs, Aspirin'),
+          findsOneWidget);
+
+      // Test on ultra-narrow Android (320x640)
+      tester.view.physicalSize = const Size(320, 640);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Public View'), findsOneWidget);
+      expect(find.text('Emergency Information'), findsWidgets);
     });
   });
 

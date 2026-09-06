@@ -67,6 +67,7 @@ class SehatAiRepository {
   }
 
   /// Fetches all chat conversations for the current patient.
+  /// Fetches all chat conversations for the current patient.
   Future<List<ChatConversationModel>> getConversations() async {
     final userId = currentUserId;
     if (userId == null || userId.isEmpty) {
@@ -81,8 +82,8 @@ class SehatAiRepository {
           .order('updated_at', ascending: false);
 
       return data
-          .whereType<Map<String, dynamic>>()
-          .map((row) => ChatConversationModel.fromMap(row))
+          .whereType<Map>()
+          .map((row) => ChatConversationModel.fromMap(Map<String, dynamic>.from(row)))
           .toList();
     } catch (e) {
       debugPrint('[SehatAiRepository] getConversations notice: $e');
@@ -110,13 +111,9 @@ class SehatAiRepository {
       return ChatConversationModel.fromMap(Map<String, dynamic>.from(response));
     } catch (e) {
       debugPrint('[SehatAiRepository] createConversation error: $e');
-      // If table doesn't exist yet in local fallback, return local conversation
-      return ChatConversationModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: userId,
-        title: title ?? 'New Conversation',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+      throw const SehatAiException(
+        'Unable to start new chat conversation. Please try again.',
+        code: 'CREATE_CONVERSATION_FAILED',
       );
     }
   }
@@ -190,20 +187,35 @@ class SehatAiRepository {
       final List<dynamic> data =
           await query.order('created_at', ascending: true).limit(limit);
 
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map((row) => ChatMessage.fromMap(row))
+      debugPrint(
+        '[SehatAiRepository] loadChatHistory: convId=$conversationId, '
+        'userId=${userId.substring(0, userId.length > 8 ? 8 : userId.length)}..., '
+        'rowsReturned=${data.length}',
+      );
+
+      final messages = data
+          .whereType<Map>()
+          .map((row) => ChatMessage.fromMap(Map<String, dynamic>.from(row)))
           .toList();
+
+      debugPrint(
+        '[SehatAiRepository] loadChatHistory: parsedMessages=${messages.length}',
+      );
+
+      return messages;
     } catch (e) {
       debugPrint('[SehatAiRepository] loadChatHistory error: $e');
-      return [];
+      throw const SehatAiException(
+        'Unable to load conversation history. Please try again.',
+        code: 'LOAD_HISTORY_FAILED',
+      );
     }
   }
 
   /// Sends a message to the deployed `sehat-ai` Supabase Edge Function.
   Future<SehatAiResponse> sendMessage(
     String message, {
-    String? conversationId,
+    List<ChatMessage>? sessionHistory,
   }) async {
     final trimmed = message.trim();
     if (trimmed.isEmpty) {
@@ -221,7 +233,7 @@ class SehatAiRepository {
     debugPrint(
       '[SehatAiRepository] Invoking sehat-ai: sessionExists=${session != null}, '
       'hasAccessToken=${accessToken != null && accessToken.isNotEmpty}, '
-      'userEmail=$userEmail, conversationId=$conversationId',
+      'userEmail=$userEmail, inSessionMessages=${sessionHistory?.length ?? 0}',
     );
 
     if (accessToken == null || accessToken.isEmpty) {
@@ -236,8 +248,14 @@ class SehatAiRepository {
       final bodyPayload = <String, dynamic>{
         'message': trimmed,
       };
-      if (conversationId != null && conversationId.isNotEmpty) {
-        bodyPayload['conversation_id'] = conversationId;
+
+      if (sessionHistory != null && sessionHistory.isNotEmpty) {
+        bodyPayload['history'] = sessionHistory
+            .map((msg) => {
+                  'sender': msg.sender == MessageSender.ai ? 'ai' : 'user',
+                  'message': msg.text,
+                })
+            .toList();
       }
 
       final FunctionResponse response = await _client.functions.invoke(

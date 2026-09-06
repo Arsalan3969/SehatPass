@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'lock_screen_emergency_service.dart';
 
 class AuthService {
   AuthService._();
@@ -88,9 +89,14 @@ class AuthService {
     }
   }
 
-  /// Sign out the current user and end the Supabase session.
+  /// Sign out the current user, end the Supabase session, and clear lock-screen emergency access.
   Future<void> signOut() async {
     try {
+      // Clear persistent lock-screen emergency access immediately
+      try {
+        await LockScreenEmergencyService.instance.disable();
+      } catch (_) {}
+
       await _client.auth.signOut();
     } on AuthException catch (e) {
       throw _getFriendlyAuthMessage(e.message);

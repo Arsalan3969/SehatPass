@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'citation_item.dart';
 
 /// Identifies who sent a chat message.
@@ -26,8 +27,20 @@ class ChatMessage {
   /// Creates a ChatMessage from a `public.sehat_ai_chats` Supabase record.
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
     final senderStr = map['sender'] as String? ?? 'user';
-    final metadata = map['metadata'] as Map<String, dynamic>? ?? {};
-    final rawCitations = metadata['citations'] as List<dynamic>? ?? [];
+
+    Map<String, dynamic> metadata = {};
+    if (map['metadata'] is Map) {
+      metadata = Map<String, dynamic>.from(map['metadata'] as Map);
+    } else if (map['metadata'] is String && (map['metadata'] as String).isNotEmpty) {
+      try {
+        final decoded = json.decode(map['metadata'] as String);
+        if (decoded is Map) {
+          metadata = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    }
+
+    final rawCitations = metadata['citations'] is List ? metadata['citations'] as List : const [];
 
     DateTime ts = DateTime.now();
     if (map['created_at'] != null) {
@@ -43,8 +56,8 @@ class ChatMessage {
           : MessageSender.user,
       timestamp: ts,
       citations: rawCitations
-          .whereType<Map<String, dynamic>>()
-          .map((c) => CitationItem.fromJson(c))
+          .whereType<Map>()
+          .map((c) => CitationItem.fromJson(Map<String, dynamic>.from(c)))
           .toList(),
     );
   }

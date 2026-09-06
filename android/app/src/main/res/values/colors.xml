@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="sehat_primary">#2E7D5E</color>
+    <color name="sehat_primary_surface">#E8F5EF</color>
+    <color name="sehat_emergency">#DC2626</color>
+    <color name="sehat_emergency_surface">#FEF2F2</color>
+    <color name="sehat_emergency_border">#FECACA</color>
+    <color name="sehat_background">#F8F9FA</color>
+    <color name="sehat_surface">#FFFFFF</color>
+    <color name="sehat_text_primary">#1A1A2E</color>
+    <color name="sehat_text_secondary">#6B7280</color>
+    <color name="sehat_border">#E5E7EB</color>
+</resources>

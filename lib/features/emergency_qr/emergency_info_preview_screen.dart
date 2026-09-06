@@ -66,31 +66,6 @@ class _EmergencyInfoPreviewScreenState
     }
   }
 
-  void _onContactEmergency(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.phone_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _data.emergencyContactPhone.isNotEmpty
-                    ? 'Calling ${_data.emergencyContactName} (${_data.emergencyContactPhone})...'
-                    : 'No emergency phone number available.',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.emergency,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasAnyInfo = _data.hasAnySharedInfo;
@@ -439,34 +414,6 @@ class _EmergencyInfoPreviewScreenState
                                     ),
                                   ],
                                 ),
-                                if (_data.emergencyContactPhone.isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 46,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _onContactEmergency(context),
-                                      icon: const Icon(Icons.phone_rounded,
-                                          size: 18),
-                                      label: const Text(
-                                          'Contact Emergency Contact'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.emergency,
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        textStyle: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
@@ -493,43 +440,53 @@ class _EmergencyInfoPreviewScreenState
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(icon, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: 10),
-              Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-              const Spacer(),
-              if (isHighlight)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.emergencySurface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.emergencyBorder),
-                  ),
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      color: valueColor ?? AppColors.emergency,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                )
-              else
-                Text(
-                  value,
-                  style: AppTextStyles.labelLarge.copyWith(
-                    color: valueColor ?? AppColors.textPrimary,
+              Flexible(
+                fit: FlexFit.loose,
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: isHighlight
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.emergencySurface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.emergencyBorder),
+                          ),
+                          child: Text(
+                            value,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              color: valueColor ?? AppColors.emergency,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          value,
+                          textAlign: TextAlign.end,
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: valueColor ?? AppColors.textPrimary,
+                            fontSize: 13,
+                          ),
+                        ),
+                ),
+              ),
             ],
           ),
         ),

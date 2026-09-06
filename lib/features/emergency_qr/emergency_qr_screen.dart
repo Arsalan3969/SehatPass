@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../services/lock_screen_emergency_service.dart';
 import '../../shared/widgets/app_card.dart';
 import 'data/emergency_repository.dart';
 import 'emergency_info_preview_screen.dart';
@@ -11,8 +12,13 @@ import 'models/emergency_info_model.dart';
 
 class EmergencyQrScreen extends StatefulWidget {
   final EmergencyRepository? repository;
+  final LockScreenEmergencyService? lockScreenService;
 
-  const EmergencyQrScreen({super.key, this.repository});
+  const EmergencyQrScreen({
+    super.key,
+    this.repository,
+    this.lockScreenService,
+  });
 
   @override
   State<EmergencyQrScreen> createState() => _EmergencyQrScreenState();
@@ -21,11 +27,15 @@ class EmergencyQrScreen extends StatefulWidget {
 class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
   EmergencyRepository get _repo =>
       widget.repository ?? EmergencyRepository.instance;
+  LockScreenEmergencyService get _lockScreenService =>
+      widget.lockScreenService ?? LockScreenEmergencyService.instance;
 
   EmergencyInfoData _data = const EmergencyInfoData();
   bool _isLoading = true;
   bool _isRegenerating = false;
   bool _isTogglingStatus = false;
+  bool _isLockScreenEnabled = false;
+  bool _isTogglingLockScreen = false;
   String? _errorMessage;
 
   @override
@@ -43,9 +53,27 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
 
     try {
       final info = await _repo.getEmergencyInfo();
+      final isLockEnabled = await _lockScreenService.isEnabled();
+
+      // If lock-screen emergency is active, keep data fresh in native storage
+      if (isLockEnabled && info.identifier.isNotEmpty) {
+        final url = _repo.buildEmergencyAccessUrl(info.identifier);
+        final contactStr = info.hasEmergencyContact
+            ? '${info.emergencyContactName} (${info.emergencyContactPhone})'
+            : null;
+        await _lockScreenService.updateData(
+          qrUrl: url,
+          patientName: info.fullName,
+          bloodGroup: info.bloodGroup,
+          emergencyContact: contactStr,
+          token: info.identifier,
+        );
+      }
+
       if (!mounted) return;
       setState(() {
         _data = info;
+        _isLockScreenEnabled = isLockEnabled;
         _isLoading = false;
       });
     } catch (e) {
@@ -91,6 +119,155 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
         SnackBar(
           content: Text(e is String ? e : 'Unable to update status.'),
           backgroundColor: AppColors.emergency,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onToggleLockScreen(bool enable) async {
+    if (_isTogglingLockScreen) return;
+
+    if (enable) {
+      // Show explicit user consent and security confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: AppColors.surface,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.screen_lock_portrait_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Lock-Screen Emergency QR',
+                  style: AppTextStyles.headingSmall,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Your Emergency QR will be visible to anyone who can access your phone\'s lock screen. The QR provides access to your emergency medical information.\n\nYour phone will remain locked and password protected.',
+            style: AppTextStyles.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Enable'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      setState(() => _isTogglingLockScreen = true);
+
+      // Check notification permission (Android 13+)
+      final hasPermission =
+          await _lockScreenService.isNotificationPermissionGranted();
+      if (!hasPermission) {
+        final granted =
+            await _lockScreenService.requestNotificationPermission();
+        if (!granted) {
+          if (!mounted) return;
+          setState(() => _isTogglingLockScreen = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Notification permission is required to show the Emergency QR on the lock screen.',
+              ),
+              backgroundColor: AppColors.emergency,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+          return;
+        }
+      }
+
+      final url = _repo.buildEmergencyAccessUrl(_data.identifier);
+      final contactStr = _data.hasEmergencyContact
+          ? '${_data.emergencyContactName} (${_data.emergencyContactPhone})'
+          : null;
+
+      final success = await _lockScreenService.enable(
+        qrUrl: url,
+        patientName: _data.fullName,
+        bloodGroup: _data.bloodGroup,
+        emergencyContact: contactStr,
+        token: _data.identifier,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isLockScreenEnabled = success;
+        _isTogglingLockScreen = false;
+      });
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_outline_rounded,
+                    color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Lock-Screen Emergency QR is now active.',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } else {
+      setState(() => _isTogglingLockScreen = true);
+      await _lockScreenService.disable();
+      if (!mounted) return;
+      setState(() {
+        _isLockScreenEnabled = false;
+        _isTogglingLockScreen = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Lock-Screen Emergency QR disabled.'),
+          backgroundColor: AppColors.textSecondary,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -157,6 +334,23 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
         _data = _data.copyWith(identifier: newToken);
         _isRegenerating = false;
       });
+
+      // Update lock-screen emergency QR payload if enabled
+      if (_isLockScreenEnabled) {
+        final newUrl = _repo.buildEmergencyAccessUrl(newToken);
+        final contactStr = _data.hasEmergencyContact
+            ? '${_data.emergencyContactName} (${_data.emergencyContactPhone})'
+            : null;
+        await _lockScreenService.updateData(
+          qrUrl: newUrl,
+          patientName: _data.fullName,
+          bloodGroup: _data.bloodGroup,
+          emergencyContact: contactStr,
+          token: newToken,
+        );
+      }
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -388,11 +582,13 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Emergency QR Access',
-                          style: AppTextStyles.headingSmall.copyWith(
-                            color: AppColors.emergency,
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Text(
+                            'Emergency QR Access',
+                            style: AppTextStyles.headingSmall.copyWith(
+                              color: AppColors.emergency,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -493,13 +689,13 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // QR Widget - Encodes only the secure HTTPS emergency URL
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -516,7 +712,7 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                         child: QrImageView(
                           data: publicEmergencyUrl,
                           version: QrVersions.auto,
-                          size: 210.0,
+                          size: 190.0,
                           backgroundColor: Colors.white,
                           eyeStyle: QrEyeStyle(
                             eyeShape: QrEyeShape.square,
@@ -533,8 +729,8 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                         ),
                       )
                     : const SizedBox(
-                        height: 210,
-                        width: 210,
+                        height: 190,
+                        width: 190,
                         child: Center(
                           child: CircularProgressIndicator(
                               color: AppColors.emergency),
@@ -583,15 +779,18 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      _data.isActive
-                          ? 'Emergency Access: ACTIVE'
-                          : 'Emergency Access: DISABLED',
-                      style: AppTextStyles.caption.copyWith(
-                        color: _data.isActive
-                            ? AppColors.primary
-                            : AppColors.emergency,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        _data.isActive
+                            ? 'Emergency Access: ACTIVE'
+                            : 'Emergency Access: DISABLED',
+                        style: AppTextStyles.caption.copyWith(
+                          color: _data.isActive
+                              ? AppColors.primary
+                              : AppColors.emergency,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -662,9 +861,16 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _onCopyPublicUrl,
-                      icon: const Icon(Icons.link_rounded, size: 16),
-                      label: const Text('Copy Web Link'),
+                      icon: const Icon(Icons.link_rounded, size: 15),
+                      label: const Text(
+                        'Copy Link',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12),
+                      ),
                       style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 8),
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
                         shape: RoundedRectangleBorder(
@@ -673,13 +879,20 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isRegenerating ? null : _onRegenerateToken,
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: const Text('Reset Token'),
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text(
+                        'Reset Token',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12),
+                      ),
                       style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 8),
                         foregroundColor: AppColors.emergency,
                         side: const BorderSide(color: AppColors.emergencyBorder),
                         shape: RoundedRectangleBorder(
@@ -690,6 +903,86 @@ class _EmergencyQrScreenState extends State<EmergencyQrScreen> {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Lock-Screen Emergency QR Card ────────────────────────
+        AppCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.screen_lock_portrait_rounded,
+                              color: AppColors.primary,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Lock-Screen Emergency QR',
+                                style: AppTextStyles.labelLarge
+                                    .copyWith(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Allow responders to access your Emergency QR while your phone is locked.',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Switch.adaptive(
+                    value: _isLockScreenEnabled,
+                    activeTrackColor: AppColors.primary,
+                    activeThumbColor: Colors.white,
+                    onChanged: _isTogglingLockScreen || _isLoading
+                        ? null
+                        : (val) => _onToggleLockScreen(val),
+                  ),
+                ],
+              ),
+              if (_isLockScreenEnabled) ...[
+                const Divider(height: 20, color: AppColors.border),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Active on Lock Screen: Responders can tap the notification to view the Emergency QR without phone password.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
